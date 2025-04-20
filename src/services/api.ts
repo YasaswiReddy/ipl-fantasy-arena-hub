@@ -1,6 +1,5 @@
-
 import { toast } from "@/components/ui/sonner";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 
 interface FetchOptions extends RequestInit {
   suppressErrorToast?: boolean;
@@ -50,7 +49,6 @@ class ApiService {
     }
   }
   
-  // Auth endpoints
   async login(email: string, password: string) {
     return this.fetchWithAuth('/auth/login', {
       method: 'POST',
@@ -59,12 +57,10 @@ class ApiService {
     });
   }
   
-  // League endpoints
   async getLeagues() {
     return this.fetchWithAuth('/leagues');
   }
   
-  // Leaderboard endpoints
   async getOverallLeaderboard() {
     return this.fetchWithAuth('/fantasy/leaderboard');
   }
@@ -73,7 +69,6 @@ class ApiService {
     return this.fetchWithAuth(`/fantasy/leaderboard?leagueId=${leagueId}`);
   }
   
-  // Team endpoints
   async getTeams() {
     return this.fetchWithAuth('/teams');
   }
@@ -82,7 +77,6 @@ class ApiService {
     return this.fetchWithAuth(`/fantasy/team/${teamId}`);
   }
   
-  // Player endpoints
   async getPlayers(params: { teamId?: number; search?: string } = {}) {
     const queryParams = new URLSearchParams();
     if (params.teamId) queryParams.append('teamId', params.teamId.toString());
@@ -96,12 +90,10 @@ class ApiService {
     return this.fetchWithAuth(`/player/${playerId}/performances`);
   }
   
-  // Match endpoints
   async getMatches(type: 'recent' | 'upcoming', limit: number = 5) {
     return this.fetchWithAuth(`/matches?type=${type}&limit=${limit}`);
   }
   
-  // Stats endpoints
   async getTopPerformers(metric: 'runs' | 'wickets' | 'economy') {
     return this.fetchWithAuth(`/stats/top?metric=${metric}`);
   }

@@ -37,7 +37,7 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-ipl-gradient">
+          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-600">
             IPL Fantasy Hub
           </h1>
           <p className="text-muted-foreground mt-2">
@@ -78,7 +78,7 @@ const Login = () => {
               </div>
               <Button 
                 type="submit" 
-                className="w-full bg-ipl-blue hover:bg-ipl-blue/90" 
+                className="w-full bg-blue-600 hover:bg-blue-700" 
                 disabled={isLoading}
               >
                 {isLoading ? "Logging in..." : "Log In"}
