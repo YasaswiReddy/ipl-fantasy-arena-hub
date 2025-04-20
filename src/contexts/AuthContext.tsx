@@ -1,9 +1,9 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { AuthState, User } from "@/types";
-import { api } from "@/services/api";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "@/components/ui/sonner";
+import { supabase } from "@/lib/supabase";
 
 interface AuthContextProps {
   authState: AuthState;
@@ -26,34 +26,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const location = useLocation();
 
   useEffect(() => {
-    // Initialize auth state from localStorage
-    const token = localStorage.getItem("auth_token");
-    const userJson = localStorage.getItem("user");
-    
-    if (token && userJson) {
-      try {
-        const user = JSON.parse(userJson) as User;
+    // Check active sessions and sets the user
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
         setAuthState({
-          token,
-          user,
+          token: session.access_token,
+          user: {
+            id: parseInt(session.user.id),
+            email: session.user.email || '',
+            name: session.user.user_metadata.name || session.user.email?.split('@')[0] || '',
+          },
           isAuthenticated: true,
           isLoading: false,
         });
-      } catch (error) {
-        console.error("Failed to parse user data", error);
-        localStorage.removeItem("auth_token");
-        localStorage.removeItem("user");
+      } else {
         setAuthState({
           ...initialAuthState,
           isLoading: false,
         });
       }
-    } else {
-      setAuthState({
-        ...initialAuthState,
-        isLoading: false,
-      });
-    }
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setAuthState({
+          token: session.access_token,
+          user: {
+            id: parseInt(session.user.id),
+            email: session.user.email || '',
+            name: session.user.user_metadata.name || session.user.email?.split('@')[0] || '',
+          },
+          isAuthenticated: true,
+          isLoading: false,
+        });
+      } else {
+        setAuthState({
+          ...initialAuthState,
+          isLoading: false,
+        });
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -72,26 +89,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await api.login(email, password);
-      
-      if (response && response.token) {
-        // Mock user data - in a real app, this would come from the API
-        const mockUser: User = {
-          id: 1,
-          email,
-          name: email.split('@')[0],
-        };
-        
-        localStorage.setItem("auth_token", response.token);
-        localStorage.setItem("user", JSON.stringify(mockUser));
-        
-        setAuthState({
-          token: response.token,
-          user: mockUser,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-        
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      if (data.session) {
         toast.success("Login successful");
         navigate("/home");
       }
@@ -100,17 +105,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("user");
-    
-    setAuthState({
-      token: null,
-      user: null,
-      isAuthenticated: false,
-      isLoading: false,
-    });
-    
+  const logout = async () => {
+    await supabase.auth.signOut();
     toast.success("You have been logged out");
     navigate("/login");
   };

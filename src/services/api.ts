@@ -1,5 +1,6 @@
 
 import { toast } from "@/components/ui/sonner";
+import { supabase } from "@/lib/supabase";
 
 interface FetchOptions extends RequestInit {
   suppressErrorToast?: boolean;
@@ -9,11 +10,11 @@ const baseUrl = '/api';
 
 class ApiService {
   async fetchWithAuth(endpoint: string, options: FetchOptions = {}) {
-    const token = localStorage.getItem('auth_token');
+    const { data: { session } } = await supabase.auth.getSession();
     
     const headers = new Headers(options.headers);
-    if (token) {
-      headers.append('Authorization', `Bearer ${token}`);
+    if (session?.access_token) {
+      headers.append('Authorization', `Bearer ${session.access_token}`);
     }
     headers.append('Content-Type', 'application/json');
     
@@ -24,7 +25,7 @@ class ApiService {
       });
       
       if (response.status === 401) {
-        localStorage.removeItem('auth_token');
+        await supabase.auth.signOut();
         window.location.href = '/login';
         return null;
       }
