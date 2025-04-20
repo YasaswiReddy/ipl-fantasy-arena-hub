@@ -69,6 +69,9 @@ const Home = () => {
     },
   });
 
+  // Safe accessor for matches with type checking
+  const displayMatches = Array.isArray(upcomingMatches) ? upcomingMatches.slice(0, 3) : [];
+
   return (
     <div className="min-h-screen bg-slate-50">
       <Header />
@@ -92,7 +95,7 @@ const Home = () => {
             <div className="mb-6">
               <h2 className="text-xl font-bold mb-4">Today's Matches</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {upcomingMatches.slice(0, 3).map((match) => (
+                {displayMatches.map((match) => (
                   <MatchCard key={match.id} match={match} />
                 ))}
               </div>

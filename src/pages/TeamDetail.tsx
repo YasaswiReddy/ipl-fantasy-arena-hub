@@ -26,7 +26,7 @@ const TeamDetail = () => {
   });
 
   const handleBackClick = () => {
-    if (leagueId) {
+    if (leagueId) {.
       navigate(`/league/${leagueId}/leaderboard`);
     } else {
       navigate("/home");

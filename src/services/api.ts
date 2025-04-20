@@ -1,6 +1,8 @@
+
 import { toast } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { supabaseService } from "./supabaseService";
+import { League, Player, FantasyTeam, Match, LeaderboardEntry, TopPerformer, PlayerPerformance } from "@/types";
 
 interface FetchOptions extends RequestInit {
   suppressErrorToast?: boolean;
@@ -58,7 +60,7 @@ class ApiService {
     });
   }
   
-  async getLeagues() {
+  async getLeagues(): Promise<League[]> {
     try {
       return await supabaseService.getLeagues();
     } catch (error) {
@@ -76,7 +78,7 @@ class ApiService {
     }
   }
   
-  async getFantasyTeam(teamId: number) {
+  async getFantasyTeam(teamId: number): Promise<FantasyTeam> {
     try {
       return await supabaseService.getFantasyTeam(teamId);
     } catch (error) {
@@ -85,7 +87,7 @@ class ApiService {
     }
   }
   
-  async getPlayers(params: { teamId?: number; search?: string } = {}) {
+  async getPlayers(params: { teamId?: number; search?: string } = {}): Promise<Player[]> {
     try {
       return await supabaseService.getPlayers(params);
     } catch (error) {
@@ -94,7 +96,7 @@ class ApiService {
     }
   }
   
-  async getMatches(type: 'recent' | 'upcoming', limit: number = 5) {
+  async getMatches(type: 'recent' | 'upcoming', limit: number = 5): Promise<Match[]> {
     try {
       return await supabaseService.getMatches(type, limit);
     } catch (error) {
@@ -103,19 +105,19 @@ class ApiService {
     }
   }
   
-  async getOverallLeaderboard() {
+  async getOverallLeaderboard(): Promise<LeaderboardEntry[]> {
     return this.fetchWithAuth('/fantasy/leaderboard');
   }
   
-  async getLeagueLeaderboard(leagueId: number) {
+  async getLeagueLeaderboard(leagueId: number): Promise<LeaderboardEntry[]> {
     return this.fetchWithAuth(`/fantasy/leaderboard?leagueId=${leagueId}`);
   }
   
-  async getPlayerPerformances(playerId: number) {
+  async getPlayerPerformances(playerId: number): Promise<PlayerPerformance[]> {
     return this.fetchWithAuth(`/player/${playerId}/performances`);
   }
   
-  async getTopPerformers(metric: 'runs' | 'wickets' | 'economy') {
+  async getTopPerformers(metric: 'runs' | 'wickets' | 'economy'): Promise<TopPerformer[]> {
     return this.fetchWithAuth(`/stats/top?metric=${metric}`);
   }
 }

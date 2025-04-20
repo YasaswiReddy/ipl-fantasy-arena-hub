@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { League, Player, FantasyTeam, Match, PlayerPerformance } from "@/types";
+import { dataTransformService } from "./dataTransformService";
 
 export const supabaseService = {
   // League operations
@@ -12,10 +13,10 @@ export const supabaseService = {
       .single();
       
     if (error) throw error;
-    return data;
+    return dataTransformService.transformLeague(data);
   },
   
-  async getLeagues() {
+  async getLeagues(): Promise<League[]> {
     const { data, error } = await supabase
       .from('leagues')
       .select(`
@@ -24,7 +25,7 @@ export const supabaseService = {
       `);
       
     if (error) throw error;
-    return data;
+    return data.map(league => dataTransformService.transformLeague(league));
   },
   
   // Fantasy Team operations
@@ -39,10 +40,10 @@ export const supabaseService = {
       .single();
       
     if (error) throw error;
-    return data;
+    return dataTransformService.transformFantasyTeam(data);
   },
   
-  async getFantasyTeam(teamId: number) {
+  async getFantasyTeam(teamId: number): Promise<FantasyTeam> {
     const { data, error } = await supabase
       .from('fantasy_teams')
       .select(`
@@ -55,11 +56,11 @@ export const supabaseService = {
       .single();
       
     if (error) throw error;
-    return data;
+    return dataTransformService.transformFantasyTeam(data);
   },
   
   // Player operations
-  async getPlayers(filters?: { teamId?: number; search?: string }) {
+  async getPlayers(filters?: { teamId?: number; search?: string }): Promise<Player[]> {
     let query = supabase
       .from('players')
       .select('*');
@@ -74,11 +75,11 @@ export const supabaseService = {
     
     const { data, error } = await query;
     if (error) throw error;
-    return data;
+    return data.map(player => dataTransformService.transformPlayer(player));
   },
   
   // Match operations
-  async getMatches(type: 'recent' | 'upcoming', limit: number = 5) {
+  async getMatches(type: 'recent' | 'upcoming', limit: number = 5): Promise<Match[]> {
     const now = new Date().toISOString();
     const { data, error } = await supabase
       .from('matches')
@@ -91,6 +92,6 @@ export const supabaseService = {
       .limit(limit);
       
     if (error) throw error;
-    return data;
+    return data.map(match => dataTransformService.transformMatch(match));
   }
 };
