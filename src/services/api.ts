@@ -1,5 +1,6 @@
 import { toast } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { supabaseService } from "./supabaseService";
 
 interface FetchOptions extends RequestInit {
   suppressErrorToast?: boolean;
@@ -58,7 +59,48 @@ class ApiService {
   }
   
   async getLeagues() {
-    return this.fetchWithAuth('/leagues');
+    try {
+      return await supabaseService.getLeagues();
+    } catch (error) {
+      toast.error("Failed to fetch leagues");
+      throw error;
+    }
+  }
+  
+  async getTeams() {
+    try {
+      return await supabaseService.getPlayers();
+    } catch (error) {
+      toast.error("Failed to fetch teams");
+      throw error;
+    }
+  }
+  
+  async getFantasyTeam(teamId: number) {
+    try {
+      return await supabaseService.getFantasyTeam(teamId);
+    } catch (error) {
+      toast.error("Failed to fetch fantasy team");
+      throw error;
+    }
+  }
+  
+  async getPlayers(params: { teamId?: number; search?: string } = {}) {
+    try {
+      return await supabaseService.getPlayers(params);
+    } catch (error) {
+      toast.error("Failed to fetch players");
+      throw error;
+    }
+  }
+  
+  async getMatches(type: 'recent' | 'upcoming', limit: number = 5) {
+    try {
+      return await supabaseService.getMatches(type, limit);
+    } catch (error) {
+      toast.error("Failed to fetch matches");
+      throw error;
+    }
   }
   
   async getOverallLeaderboard() {
@@ -69,29 +111,8 @@ class ApiService {
     return this.fetchWithAuth(`/fantasy/leaderboard?leagueId=${leagueId}`);
   }
   
-  async getTeams() {
-    return this.fetchWithAuth('/teams');
-  }
-  
-  async getFantasyTeam(teamId: number) {
-    return this.fetchWithAuth(`/fantasy/team/${teamId}`);
-  }
-  
-  async getPlayers(params: { teamId?: number; search?: string } = {}) {
-    const queryParams = new URLSearchParams();
-    if (params.teamId) queryParams.append('teamId', params.teamId.toString());
-    if (params.search) queryParams.append('search', params.search);
-    
-    const queryString = queryParams.toString();
-    return this.fetchWithAuth(`/players${queryString ? `?${queryString}` : ''}`);
-  }
-  
   async getPlayerPerformances(playerId: number) {
     return this.fetchWithAuth(`/player/${playerId}/performances`);
-  }
-  
-  async getMatches(type: 'recent' | 'upcoming', limit: number = 5) {
-    return this.fetchWithAuth(`/matches?type=${type}&limit=${limit}`);
   }
   
   async getTopPerformers(metric: 'runs' | 'wickets' | 'economy') {
