@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { League, Player, FantasyTeam, Match, PlayerPerformance } from "@/types";
 import { dataTransformService } from "./dataTransformService";
@@ -106,5 +107,57 @@ export const supabaseService = {
       
     if (error) throw error;
     return data.map(match => dataTransformService.transformMatch(match));
+  },
+  
+  // Cricket data fetch operations
+  async fetchCricketData(): Promise<{ success: boolean; message: string }> {
+    try {
+      const { data, error } = await supabase.functions.invoke('auto-fetch-cricket-data', {
+        body: { action: 'fetch-initial-data' }
+      });
+      
+      if (error) throw error;
+      return { 
+        success: true, 
+        message: `Successfully fetched cricket data: ${data.result.fixtures_count} fixtures, ${data.result.players_count} players` 
+      };
+    } catch (error) {
+      console.error("Error fetching cricket data:", error);
+      return { success: false, message: `Error: ${error.message || 'Unknown error'}` };
+    }
+  },
+  
+  async checkAndUpdateFixtures(): Promise<{ success: boolean; message: string }> {
+    try {
+      const { data, error } = await supabase.functions.invoke('auto-fetch-cricket-data', {
+        body: { action: 'check-and-update' }
+      });
+      
+      if (error) throw error;
+      return { 
+        success: true, 
+        message: `Fixtures checked: ${data.result.total_fixtures}, Live updates: ${data.result.live_updated}, Past matches updated: ${data.result.past_matches_updated}` 
+      };
+    } catch (error) {
+      console.error("Error updating fixtures:", error);
+      return { success: false, message: `Error: ${error.message || 'Unknown error'}` };
+    }
+  },
+  
+  async setupCricketUpdateScheduler(): Promise<{ success: boolean; message: string }> {
+    try {
+      const { data, error } = await supabase.functions.invoke('schedule-cricket-updates', {
+        body: {}
+      });
+      
+      if (error) throw error;
+      return { 
+        success: true, 
+        message: `Cricket update scheduler configured: Updates will run every 5 minutes` 
+      };
+    } catch (error) {
+      console.error("Error setting up scheduler:", error);
+      return { success: false, message: `Error: ${error.message || 'Unknown error'}` };
+    }
   }
 };
