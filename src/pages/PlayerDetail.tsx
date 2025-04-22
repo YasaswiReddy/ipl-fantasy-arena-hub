@@ -1,8 +1,9 @@
 
+import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
-import { PlayerDetail } from "@/types";
+import { PlayerDetail, PlayerPerformance } from "@/types";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,11 +23,18 @@ const PlayerDetailPage = () => {
       if (!playerIdNum) throw new Error("Player ID is required");
       const performances = await api.getPlayerPerformances(playerIdNum);
       
+      // Make sure the role is one of the allowed types
+      const role = performances[0]?.role || "Batsman";
+      const validRoles = ["Batsman", "Bowler", "All-Rounder", "Wicket-Keeper"] as const;
+      const validRole = validRoles.includes(role as any) 
+        ? role as "Batsman" | "Bowler" | "All-Rounder" | "Wicket-Keeper"
+        : "Batsman";
+
       return {
         id: playerIdNum,
-        name: performances[0]?.playerName || "Unknown Player",
-        role: "Unknown" as const,
-        iplTeam: performances[0]?.team || "Unknown Team",
+        name: performances[0]?.name || "Unknown Player",
+        role: validRole,
+        iplTeam: performances[0]?.opponent || "Unknown Team",
         iplTeamLogo: "/placeholder.svg",
         photoUrl: "/placeholder.svg",
         seasonPoints: performances.reduce((sum, p) => sum + p.points, 0),

@@ -1,4 +1,5 @@
 
+import React, { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
@@ -32,7 +33,7 @@ const LeagueLeaderboard = () => {
     return acc;
   }, ['All'] as string[]);
 
-  const [selectedGroup, setSelectedGroup] = React.useState<string>('All');
+  const [selectedGroup, setSelectedGroup] = useState<string>('All');
 
   const filteredLeaderboard = selectedGroup === 'All' 
     ? leaderboard 

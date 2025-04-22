@@ -70,6 +70,8 @@ export interface PlayerPerformance {
   wickets?: number;
   catches?: number;
   stumpings?: number;
+  name?: string;
+  role?: string;
 }
 
 export interface PlayerDetail extends Player {
