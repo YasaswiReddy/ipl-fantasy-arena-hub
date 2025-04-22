@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { League, Player, FantasyTeam, Match, PlayerPerformance } from "@/types";
 import { dataTransformService } from "./dataTransformService";
@@ -128,11 +129,26 @@ export const supabaseService = {
   
   async checkAndUpdateFixtures(): Promise<{ success: boolean; message: string }> {
     try {
+      console.log("Checking and updating fixtures...");
+      
       const { data, error } = await supabase.functions.invoke('auto-fetch-cricket-data', {
         body: { action: 'check-and-update' }
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error from edge function:", error);
+        throw error;
+      }
+      
+      console.log("Response from edge function:", data);
+      
+      if (!data || !data.result) {
+        return { 
+          success: false, 
+          message: "Invalid response from server" 
+        };
+      }
+      
       return { 
         success: true, 
         message: `Fixtures checked: ${data.result.total_fixtures}, Live updates: ${data.result.live_updated}, Past matches updated: ${data.result.past_matches_updated}` 
@@ -209,7 +225,7 @@ export const supabaseService = {
       let processedCount = 0;
       let errorCount = 0;
       
-      if (fixtures) {
+      if (fixtures && fixtures.length > 0) {
         for (const fixture of fixtures) {
           try {
             console.log(`Processing fixture ${fixture.id} from ${fixture.starting_at}`);
@@ -235,12 +251,18 @@ export const supabaseService = {
             errorCount++;
           }
         }
+        
+        return {
+          success: true,
+          message: `Processed ${processedCount} fixtures successfully. ${errorCount} fixtures had errors.`
+        };
+      } else {
+        // If no fixtures were found
+        return {
+          success: false,
+          message: "No historical fixtures found to process. Use 'Fetch Initial Cricket Data' first."
+        };
       }
-      
-      return {
-        success: true,
-        message: `Processed ${processedCount} fixtures successfully. ${errorCount} fixtures had errors.`
-      };
       
     } catch (error) {
       console.error("Error processing historical matches:", error);

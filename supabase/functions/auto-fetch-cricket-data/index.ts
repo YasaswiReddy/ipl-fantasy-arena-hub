@@ -36,14 +36,29 @@ serve(async (req) => {
       // Fetch fixtures
       const fixturesUrl = `https://cricket.sportmonks.com/api/v2.0/fixtures?filter[league_id]=${LEAGUE_ID}&filter[season_id]=${SEASON_ID}&api_token=${API_TOKEN}`;
       const fixturesResponse = await fetch(fixturesUrl);
+      
+      if (!fixturesResponse.ok) {
+        const errorText = await fixturesResponse.text();
+        console.error(`API Error (${fixturesResponse.status}): ${errorText}`);
+        throw new Error(`Failed to fetch fixtures: ${fixturesResponse.status} ${errorText}`);
+      }
+      
       const fixturesData = await fixturesResponse.json();
       const fixtures = fixturesData.data || [];
+      
+      console.log(`Fetched ${fixtures.length} fixtures from API`);
 
       // Fetch players for each team
       const playersData = [];
       for (const teamId of TEAM_IDS) {
         const playersUrl = `https://cricket.sportmonks.com/api/v2.0/teams/${teamId}/squad/${SEASON_ID}?api_token=${API_TOKEN}`;
         const playerResponse = await fetch(playersUrl);
+        
+        if (!playerResponse.ok) {
+          console.error(`Failed to fetch players for team ${teamId}: ${playerResponse.status}`);
+          continue; // Skip this team but continue with others
+        }
+        
         const playerData = await playerResponse.json();
         const squad = playerData.data?.squad || [];
         
@@ -58,27 +73,40 @@ serve(async (req) => {
         // Small delay to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
+      
+      console.log(`Fetched ${playersData.length} players from API`);
 
       // Upsert fixtures
-      const fixtureUpserts = fixtures.map(fixture => 
-        supabase.from('fixtures').upsert({
+      let successfulFixtureUpserts = 0;
+      for (const fixture of fixtures) {
+        const { error } = await supabase.from('fixtures').upsert({
           id: fixture.id,
           round: fixture.round,
           local_team_id: fixture.localteam_id,
           visitor_team_id: fixture.visitorteam_id,
           starting_at: fixture.starting_at,
-        })
-      );
+        });
+        
+        if (error) {
+          console.error(`Error upserting fixture ${fixture.id}:`, error);
+        } else {
+          successfulFixtureUpserts++;
+        }
+      }
 
       // Upsert players
-      const playerUpserts = playersData.map(player => 
-        supabase.from('players').upsert(player)
-      );
+      let successfulPlayerUpserts = 0;
+      for (const player of playersData) {
+        const { error } = await supabase.from('players').upsert(player);
+        
+        if (error) {
+          console.error(`Error upserting player ${player.id}:`, error);
+        } else {
+          successfulPlayerUpserts++;
+        }
+      }
 
-      // Wait for all upserts to complete
-      await Promise.all([...fixtureUpserts, ...playerUpserts]);
-      
-      console.log(`Initial data fetch completed: ${fixtures.length} fixtures, ${playersData.length} players`);
+      console.log(`Initial data fetch completed: ${successfulFixtureUpserts}/${fixtures.length} fixtures, ${successfulPlayerUpserts}/${playersData.length} players saved to database`);
       return { fixtures_count: fixtures.length, players_count: playersData.length };
     }
 
@@ -383,6 +411,18 @@ serve(async (req) => {
         throw new Error(`Error fetching fixtures: ${error.message}`);
       }
       
+      console.log(`Retrieved ${fixtures?.length || 0} fixtures from database`);
+      
+      if (!fixtures || fixtures.length === 0) {
+        console.log("No fixtures found in database. You may need to fetch initial data first.");
+        return {
+          total_fixtures: 0,
+          completed_with_data: 0,
+          live_updated: 0,
+          past_matches_updated: 0
+        };
+      }
+      
       // Count metrics for reporting
       let completed = 0;
       let liveUpdated = 0;
@@ -401,6 +441,11 @@ serve(async (req) => {
           .eq('fixture_id', fixtureId)
           .limit(1);
           
+        if (battingError) {
+          console.error(`Error checking batting data for fixture ${fixtureId}:`, battingError);
+          continue;
+        }
+        
         const hasMatchData = (battingData && battingData.length > 0);
         
         // Case 1: Match is currently live
@@ -420,6 +465,8 @@ serve(async (req) => {
           completed++;
         }
       }
+      
+      console.log(`Update summary: ${completed} fixtures with data, ${liveUpdated} live updated, ${pastMatchesUpdated} past matches updated`);
       
       return {
         total_fixtures: fixtures.length,
