@@ -54,14 +54,14 @@ const LeaderboardTable = ({ entries, leagueId, showAvgPoints = false }: Leaderbo
   return (
     <div className="rounded-md border overflow-hidden">
       <Table>
-        <TableHeader className="bg-muted">
+        <TableHeader className="bg-slate-100">
           <TableRow>
             <TableHead 
               className="w-14 cursor-pointer"
               onClick={() => handleSort('rank')}
             >
               <div className="flex items-center">
-                Rank <SortIcon column="rank" />
+                <span>Rank</span> <SortIcon column="rank" />
               </div>
             </TableHead>
             <TableHead 
@@ -69,7 +69,7 @@ const LeaderboardTable = ({ entries, leagueId, showAvgPoints = false }: Leaderbo
               onClick={() => handleSort('teamName')}
             >
               <div className="flex items-center">
-                Team Name <SortIcon column="teamName" />
+                <span>Team Name</span> <SortIcon column="teamName" />
               </div>
             </TableHead>
             <TableHead 
@@ -77,7 +77,7 @@ const LeaderboardTable = ({ entries, leagueId, showAvgPoints = false }: Leaderbo
               onClick={() => handleSort('totalPoints')}
             >
               <div className="flex items-center justify-end">
-                Total Pts <SortIcon column="totalPoints" />
+                <span>Total Pts</span> <SortIcon column="totalPoints" />
               </div>
             </TableHead>
             <TableHead 
@@ -85,7 +85,7 @@ const LeaderboardTable = ({ entries, leagueId, showAvgPoints = false }: Leaderbo
               onClick={() => handleSort('weeklyPoints')}
             >
               <div className="flex items-center justify-end">
-                Weekly Pts <SortIcon column="weeklyPoints" />
+                <span>Weekly Pts</span> <SortIcon column="weeklyPoints" />
               </div>
             </TableHead>
             {showAvgPoints && (
@@ -94,33 +94,41 @@ const LeaderboardTable = ({ entries, leagueId, showAvgPoints = false }: Leaderbo
                 onClick={() => handleSort('avgPointsPerMatch')}
               >
                 <div className="flex items-center justify-end">
-                  Avg Pts/Match <SortIcon column="avgPointsPerMatch" />
+                  <span>Avg Pts/Match</span> <SortIcon column="avgPointsPerMatch" />
                 </div>
               </TableHead>
             )}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sortedEntries.map((entry) => (
-            <TableRow 
-              key={entry.teamId} 
-              className="cursor-pointer hover:bg-muted/50"
-              onClick={() => handleRowClick(entry.teamId)}
-            >
-              <TableCell className="font-medium">{entry.rank}</TableCell>
-              <TableCell>
-                <div>
-                  <div className="font-medium">{entry.teamName}</div>
-                  <div className="text-xs text-muted-foreground">{entry.ownerName}</div>
-                </div>
+          {sortedEntries.length > 0 ? (
+            sortedEntries.map((entry) => (
+              <TableRow 
+                key={entry.teamId} 
+                className="cursor-pointer hover:bg-slate-50"
+                onClick={() => handleRowClick(entry.teamId)}
+              >
+                <TableCell className="font-medium">{entry.rank}</TableCell>
+                <TableCell>
+                  <div>
+                    <div className="font-medium text-primary">{entry.teamName}</div>
+                    <div className="text-xs text-muted-foreground">{entry.ownerName}</div>
+                  </div>
+                </TableCell>
+                <TableCell className="text-right font-bold">{entry.totalPoints}</TableCell>
+                <TableCell className="text-right">{entry.weeklyPoints}</TableCell>
+                {showAvgPoints && (
+                  <TableCell className="text-right">{entry.avgPointsPerMatch?.toFixed(1) || 0}</TableCell>
+                )}
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={showAvgPoints ? 5 : 4} className="h-24 text-center">
+                No data available
               </TableCell>
-              <TableCell className="text-right font-medium">{entry.totalPoints}</TableCell>
-              <TableCell className="text-right">{entry.weeklyPoints}</TableCell>
-              {showAvgPoints && (
-                <TableCell className="text-right">{entry.avgPointsPerMatch?.toFixed(1) || 0}</TableCell>
-              )}
             </TableRow>
-          ))}
+          )}
         </TableBody>
       </Table>
     </div>
