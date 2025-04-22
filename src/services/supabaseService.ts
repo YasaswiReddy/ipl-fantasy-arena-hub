@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { League, Player, FantasyTeam, Match, PlayerPerformance } from "@/types";
 import { dataTransformService } from "./dataTransformService";
@@ -57,6 +56,20 @@ export const supabaseService = {
       
     if (error) throw error;
     return dataTransformService.transformFantasyTeam(data);
+  },
+  
+  async getFantasyTeams(): Promise<FantasyTeam[]> {
+    const { data, error } = await supabase
+      .from('fantasy_teams')
+      .select(`
+        *,
+        players:fantasy_team_players(
+          player:players(*)
+        )
+      `);
+      
+    if (error) throw error;
+    return data.map(team => dataTransformService.transformFantasyTeam(team));
   },
   
   // Player operations
