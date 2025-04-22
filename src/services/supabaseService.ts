@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { League, Player, FantasyTeam, Match, PlayerPerformance } from "@/types";
 import { dataTransformService } from "./dataTransformService";
@@ -181,6 +180,73 @@ export const supabaseService = {
       return { 
         success: false, 
         message: `Error: ${error.message || 'Unknown error'}`
+      };
+    }
+  },
+  
+  async processHistoricalMatches(): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log("Starting to process historical matches...");
+      
+      // Get all past fixtures
+      const { data: fixtures, error: fixturesError } = await supabase
+        .from('fixtures')
+        .select('id, starting_at')
+        .lt('starting_at', new Date().toISOString())
+        .order('starting_at', { ascending: false });
+      
+      if (fixturesError) {
+        console.error("Error fetching fixtures:", fixturesError);
+        return { 
+          success: false, 
+          message: `Error fetching fixtures: ${fixturesError.message}` 
+        };
+      }
+
+      console.log(`Found ${fixtures?.length || 0} historical fixtures to process`);
+      
+      // Process each fixture
+      let processedCount = 0;
+      let errorCount = 0;
+      
+      if (fixtures) {
+        for (const fixture of fixtures) {
+          try {
+            console.log(`Processing fixture ${fixture.id} from ${fixture.starting_at}`);
+            
+            // Call the edge function to process this fixture
+            const response = await supabase.functions.invoke('fetch-cricket-performances', {
+              body: { fixture_id: fixture.id }
+            });
+            
+            if (response.error) {
+              console.error(`Error processing fixture ${fixture.id}:`, response.error);
+              errorCount++;
+            } else {
+              processedCount++;
+              console.log(`Successfully processed fixture ${fixture.id}`);
+            }
+            
+            // Add a small delay between requests to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+          } catch (error) {
+            console.error(`Error processing fixture ${fixture.id}:`, error);
+            errorCount++;
+          }
+        }
+      }
+      
+      return {
+        success: true,
+        message: `Processed ${processedCount} fixtures successfully. ${errorCount} fixtures had errors.`
+      };
+      
+    } catch (error) {
+      console.error("Error processing historical matches:", error);
+      return {
+        success: false,
+        message: `Error: ${error.message || 'Unknown error occurred'}`
       };
     }
   }
