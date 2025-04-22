@@ -23,39 +23,17 @@ serve(async (req) => {
     // Initialize Supabase client with service role key for admin access
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
-    // First verify that the extensions are enabled
+    // Check if the required extensions are enabled using SQL query
     console.log("Checking for required PostgreSQL extensions...");
-    const { data: pgCronExt, error: pgCronError } = await supabase
-      .from('pg_extension')
-      .select('*')
-      .eq('name', 'pg_cron')
-      .single();
+    const { data: extData, error: extError } = await supabase.rpc(
+      'query_pg_cron_jobs',
+      {}
+    );
     
-    if (pgCronError) {
-      console.error('Error checking pg_cron extension:', pgCronError);
-      throw new Error(`pg_cron extension check failed: ${pgCronError.message}`);
+    if (extError && extError.message.includes('function "query_pg_cron_jobs" does not exist')) {
+      console.error('Error checking extensions: query_pg_cron_jobs function not found');
+      throw new Error('The database function for querying cron jobs is not available. Please ensure all SQL migrations have been applied.');
     }
-    
-    if (!pgCronExt) {
-      throw new Error('pg_cron extension is not enabled. Please enable it in your Supabase project settings.');
-    }
-    
-    const { data: pgNetExt, error: pgNetError } = await supabase
-      .from('pg_extension')
-      .select('*')
-      .eq('name', 'pg_net')
-      .single();
-    
-    if (pgNetError) {
-      console.error('Error checking pg_net extension:', pgNetError);
-      throw new Error(`pg_net extension check failed: ${pgNetError.message}`);
-    }
-    
-    if (!pgNetExt) {
-      throw new Error('pg_net extension is not enabled. Please enable it in your Supabase project settings.');
-    }
-    
-    console.log("Required extensions are enabled, proceeding with scheduler setup...");
     
     // Execute raw SQL to set up cron job using the function
     console.log("Calling setup_cricket_update_cron function...");
@@ -66,18 +44,8 @@ serve(async (req) => {
     if (cronError) {
       console.error('Error setting up cron job via RPC:', cronError);
       
-      // Try to get more detailed error information
-      console.log("Checking cron.job table for existing jobs...");
-      const { data: cronJobs, error: cronJobsError } = await supabase.rpc(
-        'query_pg_cron_jobs',
-        {}
-      );
-      
-      if (cronJobsError) {
-        console.error('Error querying cron jobs:', cronJobsError);
-      } else {
-        console.log('Current cron jobs:', cronJobs);
-      }
+      // Try to get detailed error information
+      console.log("Attempting to get more detailed information...");
       
       throw new Error(`Failed to set up cron job: ${cronError.message}`);
     }

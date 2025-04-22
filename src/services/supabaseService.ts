@@ -148,33 +148,8 @@ export const supabaseService = {
     try {
       console.log("Attempting to set up cricket update scheduler...");
       
-      // First check if the required database functions exist
-      const { data: pgExtensions, error: pgExtError } = await supabase
-        .from('pg_extension')
-        .select('name')
-        .in('name', ['pg_cron', 'pg_net']);
-      
-      if (pgExtError) {
-        console.error("Failed to check PostgreSQL extensions:", pgExtError);
-        return {
-          success: false,
-          message: `Database configuration error: ${pgExtError.message}`
-        };
-      }
-      
-      // Check if both extensions are present
-      const extensionNames = pgExtensions?.map(ext => ext.name) || [];
-      if (!extensionNames.includes('pg_cron') || !extensionNames.includes('pg_net')) {
-        console.error("Required extensions not enabled:", {
-          pg_cron: extensionNames.includes('pg_cron'),
-          pg_net: extensionNames.includes('pg_net')
-        });
-        return {
-          success: false,
-          message: `Required database extensions not enabled. Please enable pg_cron and pg_net in your Supabase project.`
-        };
-      }
-      
+      // Instead of checking extensions, directly call the edge function
+      // The function will handle checking for pg_cron and pg_net itself
       const response = await supabase.functions.invoke('schedule-cricket-updates', {
         body: { timestamp: new Date().toISOString() }
       });
