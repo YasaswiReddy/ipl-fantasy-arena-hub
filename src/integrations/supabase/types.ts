@@ -9,6 +9,156 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      batting_performances: {
+        Row: {
+          balls_faced: number | null
+          boundaries: number | null
+          created_at: string | null
+          fixture_id: number | null
+          id: number
+          player_id: number | null
+          runs_scored: number | null
+          sixes: number | null
+          strike_rate: number | null
+        }
+        Insert: {
+          balls_faced?: number | null
+          boundaries?: number | null
+          created_at?: string | null
+          fixture_id?: number | null
+          id?: number
+          player_id?: number | null
+          runs_scored?: number | null
+          sixes?: number | null
+          strike_rate?: number | null
+        }
+        Update: {
+          balls_faced?: number | null
+          boundaries?: number | null
+          created_at?: string | null
+          fixture_id?: number | null
+          id?: number
+          player_id?: number | null
+          runs_scored?: number | null
+          sixes?: number | null
+          strike_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "batting_performances_fixture_id_fkey"
+            columns: ["fixture_id"]
+            isOneToOne: false
+            referencedRelation: "fixtures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "batting_performances_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bowling_performances: {
+        Row: {
+          created_at: string | null
+          economy: number | null
+          fixture_id: number | null
+          id: number
+          maiden_overs: number | null
+          overs_bowled: number | null
+          player_id: number | null
+          runs_conceded: number | null
+          wickets: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          economy?: number | null
+          fixture_id?: number | null
+          id?: number
+          maiden_overs?: number | null
+          overs_bowled?: number | null
+          player_id?: number | null
+          runs_conceded?: number | null
+          wickets?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          economy?: number | null
+          fixture_id?: number | null
+          id?: number
+          maiden_overs?: number | null
+          overs_bowled?: number | null
+          player_id?: number | null
+          runs_conceded?: number | null
+          wickets?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bowling_performances_fixture_id_fkey"
+            columns: ["fixture_id"]
+            isOneToOne: false
+            referencedRelation: "fixtures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bowling_performances_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fantasy_scores: {
+        Row: {
+          batting_points: number | null
+          bowling_points: number | null
+          created_at: string | null
+          fielding_points: number | null
+          fixture_id: number | null
+          id: number
+          player_id: number | null
+          total_points: number | null
+        }
+        Insert: {
+          batting_points?: number | null
+          bowling_points?: number | null
+          created_at?: string | null
+          fielding_points?: number | null
+          fixture_id?: number | null
+          id?: number
+          player_id?: number | null
+          total_points?: number | null
+        }
+        Update: {
+          batting_points?: number | null
+          bowling_points?: number | null
+          created_at?: string | null
+          fielding_points?: number | null
+          fixture_id?: number | null
+          id?: number
+          player_id?: number | null
+          total_points?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fantasy_scores_fixture_id_fkey"
+            columns: ["fixture_id"]
+            isOneToOne: false
+            referencedRelation: "fixtures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fantasy_scores_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fantasy_team_players: {
         Row: {
           fantasy_team_id: number
@@ -79,13 +229,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "fantasy_teams_league_id_fkey"
-            columns: ["league_id"]
-            isOneToOne: false
-            referencedRelation: "leagues"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "fantasy_teams_vice_captain_id_fkey"
             columns: ["vice_captain_id"]
             isOneToOne: false
@@ -93,6 +236,87 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      fielding_performances: {
+        Row: {
+          catches: number | null
+          created_at: string | null
+          direct_runouts: number | null
+          dot_balls: number | null
+          fixture_id: number | null
+          id: number
+          indirect_runouts: number | null
+          lbw_bowled_wickets: number | null
+          player_id: number | null
+          stumpings: number | null
+        }
+        Insert: {
+          catches?: number | null
+          created_at?: string | null
+          direct_runouts?: number | null
+          dot_balls?: number | null
+          fixture_id?: number | null
+          id?: number
+          indirect_runouts?: number | null
+          lbw_bowled_wickets?: number | null
+          player_id?: number | null
+          stumpings?: number | null
+        }
+        Update: {
+          catches?: number | null
+          created_at?: string | null
+          direct_runouts?: number | null
+          dot_balls?: number | null
+          fixture_id?: number | null
+          id?: number
+          indirect_runouts?: number | null
+          lbw_bowled_wickets?: number | null
+          player_id?: number | null
+          stumpings?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fielding_performances_fixture_id_fkey"
+            columns: ["fixture_id"]
+            isOneToOne: false
+            referencedRelation: "fixtures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fielding_performances_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fixtures: {
+        Row: {
+          created_at: string | null
+          id: number
+          local_team_id: number | null
+          round: number | null
+          starting_at: string | null
+          visitor_team_id: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id: number
+          local_team_id?: number | null
+          round?: number | null
+          starting_at?: string | null
+          visitor_team_id?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          local_team_id?: number | null
+          round?: number | null
+          starting_at?: string | null
+          visitor_team_id?: number | null
+        }
+        Relationships: []
       }
       leagues: {
         Row: {
@@ -160,74 +384,21 @@ export type Database = {
           },
         ]
       }
-      player_performances: {
-        Row: {
-          catches: number | null
-          created_at: string | null
-          id: number
-          match_id: number | null
-          player_id: number | null
-          points: number | null
-          runs: number | null
-          stumpings: number | null
-          wickets: number | null
-        }
-        Insert: {
-          catches?: number | null
-          created_at?: string | null
-          id?: number
-          match_id?: number | null
-          player_id?: number | null
-          points?: number | null
-          runs?: number | null
-          stumpings?: number | null
-          wickets?: number | null
-        }
-        Update: {
-          catches?: number | null
-          created_at?: string | null
-          id?: number
-          match_id?: number | null
-          player_id?: number | null
-          points?: number | null
-          runs?: number | null
-          stumpings?: number | null
-          wickets?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "player_performances_match_id_fkey"
-            columns: ["match_id"]
-            isOneToOne: false
-            referencedRelation: "matches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "player_performances_player_id_fkey"
-            columns: ["player_id"]
-            isOneToOne: false
-            referencedRelation: "players"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       players: {
         Row: {
           created_at: string | null
           id: number
           name: string
           photo_url: string | null
-          role: string
-          season_points: number | null
+          role: string | null
           team_id: number | null
         }
         Insert: {
           created_at?: string | null
-          id?: number
+          id: number
           name: string
           photo_url?: string | null
-          role: string
-          season_points?: number | null
+          role?: string | null
           team_id?: number | null
         }
         Update: {
@@ -235,19 +406,10 @@ export type Database = {
           id?: number
           name?: string
           photo_url?: string | null
-          role?: string
-          season_points?: number | null
+          role?: string | null
           team_id?: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "players_team_id_fkey"
-            columns: ["team_id"]
-            isOneToOne: false
-            referencedRelation: "teams"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       teams: {
         Row: {

@@ -1,1 +1,23 @@
+
 project_id = "zdpwgoiisigyuiudlbzz"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+
+[db]
+port = 54322
+
+[realtime]
+enabled = true
+
+[storage]
+enabled = true
+
+[auth]
+enabled = true
+
+[functions]
+[functions.fetch-cricket-data]
+verify_jwt = false
