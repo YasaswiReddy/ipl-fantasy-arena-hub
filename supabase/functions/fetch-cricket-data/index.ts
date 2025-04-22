@@ -1,7 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
-import { Database } from '../types.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,66 +8,9 @@ const corsHeaders = {
 };
 
 const API_TOKEN = Deno.env.get('SPORTMONKS_API_TOKEN');
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-const supabase = createClient<Database>(
-  SUPABASE_URL!,
-  SUPABASE_SERVICE_ROLE_KEY!
-);
-
-async function fetchAndStoreFixtures(leagueId: number, seasonId: number) {
-  const url = `https://cricket.sportmonks.com/api/v2.0/fixtures?filter[league_id]=${leagueId}&filter[season_id]=${seasonId}&api_token=${API_TOKEN}`;
-  const response = await fetch(url);
-  const data = await response.json();
-  const fixtures = data.data || [];
-
-  for (const fixture of fixtures) {
-    await supabase
-      .from('fixtures')
-      .upsert({
-        id: fixture.id,
-        round: fixture.round,
-        local_team_id: fixture.localteam_id,
-        visitor_team_id: fixture.visitorteam_id,
-        starting_at: fixture.starting_at,
-      });
-  }
-
-  return fixtures;
-}
-
-async function fetchAndStorePlayers(teamIds: number[], seasonId: number) {
-  const players = [];
-  
-  for (const teamId of teamIds) {
-    const url = `https://cricket.sportmonks.com/api/v2.0/teams/${teamId}/squad/${seasonId}?api_token=${API_TOKEN}`;
-    const response = await fetch(url);
-    const data = await response.json();
-    const squad = data.data?.squad || [];
-
-    for (const player of squad) {
-      const playerData = {
-        id: player.id,
-        name: player.fullname || `${player.firstname} ${player.lastname}`.trim(),
-        team_id: teamId,
-        role: player.position?.name || null,
-        photo_url: player.image_path || null,
-      };
-
-      await supabase
-        .from('players')
-        .upsert(playerData);
-
-      players.push(playerData);
-    }
-
-    // Small delay to avoid rate limiting
-    await new Promise(resolve => setTimeout(resolve, 1000));
-  }
-
-  return players;
-}
+const LEAGUE_ID = 1;
+const SEASON_ID = 1689;
+const TEAM_IDS = [2, 3, 4, 5, 6, 7, 8, 9, 1979, 1976];
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -81,23 +23,62 @@ serve(async (req) => {
       throw new Error('SPORTMONKS_API_TOKEN is required');
     }
 
-    const { league_id, season_id, team_ids } = await req.json();
+    // Fetch fixtures
+    const fixturesUrl = `https://cricket.sportmonks.com/api/v2.0/fixtures?filter[league_id]=${LEAGUE_ID}&filter[season_id]=${SEASON_ID}&api_token=${API_TOKEN}`;
+    const fixturesResponse = await fetch(fixturesUrl);
+    const fixturesData = await fixturesResponse.json();
+    const fixtures = fixturesData.data || [];
 
-    if (!league_id || !season_id || !team_ids) {
-      throw new Error('league_id, season_id, and team_ids are required');
+    // Fetch players for each team
+    const playersData = [];
+    for (const teamId of TEAM_IDS) {
+      const playersUrl = `https://cricket.sportmonks.com/api/v2.0/teams/${teamId}/squad/${SEASON_ID}?api_token=${API_TOKEN}`;
+      const playerResponse = await fetch(playersUrl);
+      const playerData = await playerResponse.json();
+      const squad = playerData.data?.squad || [];
+      
+      playersData.push(...squad.map(player => ({
+        id: player.id,
+        name: player.fullname || `${player.firstname} ${player.lastname}`.trim(),
+        team_id: teamId,
+        role: player.position?.name || null,
+        photo_url: player.image_path || null,
+      })));
+
+      // Small delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
-    // Fetch and store fixtures
-    const fixtures = await fetchAndStoreFixtures(league_id, season_id);
+    // Initialize Supabase client
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
 
-    // Fetch and store players
-    const players = await fetchAndStorePlayers(team_ids, season_id);
+    // Upsert fixtures
+    const fixtureUpserts = fixtures.map(fixture => 
+      supabase.from('fixtures').upsert({
+        id: fixture.id,
+        round: fixture.round,
+        local_team_id: fixture.localteam_id,
+        visitor_team_id: fixture.visitorteam_id,
+        starting_at: fixture.starting_at,
+      })
+    );
+
+    // Upsert players
+    const playerUpserts = playersData.map(player => 
+      supabase.from('players').upsert(player)
+    );
+
+    // Wait for all upserts to complete
+    await Promise.all([...fixtureUpserts, ...playerUpserts]);
 
     return new Response(
       JSON.stringify({ 
         message: 'Data fetched and stored successfully',
         fixtures_count: fixtures.length,
-        players_count: players.length
+        players_count: playersData.length
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -106,7 +87,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('Error:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
