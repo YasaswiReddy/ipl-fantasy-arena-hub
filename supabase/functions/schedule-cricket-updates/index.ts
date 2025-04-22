@@ -18,15 +18,18 @@ serve(async (req) => {
   }
 
   try {
-    // Initialize Supabase client
+    // Initialize Supabase client with service role key for admin access
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
-    // Set up the cron job
+    // Call the database function to set up the cron job
     const { data, error } = await supabase.rpc('setup_cricket_update_cron');
     
     if (error) {
-      throw new Error(`Failed to set up cron job: ${error.message}`);
+      console.error('Error setting up cron job:', error);
+      throw error;
     }
+
+    console.log('Cron job setup successful:', data);
     
     return new Response(
       JSON.stringify({ 
