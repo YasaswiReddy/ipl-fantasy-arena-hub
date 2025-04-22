@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import LeaderboardTable from "@/components/LeaderboardTable";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const LeagueLeaderboard = () => {
   const { leagueId } = useParams<{ leagueId: string }>();
@@ -21,6 +22,21 @@ const LeagueLeaderboard = () => {
     },
     enabled: !!leagueIdNum,
   });
+
+  // Group the data by team prefix (first word before space)
+  const groups = leaderboard.reduce((acc, entry) => {
+    const groupName = entry.teamName.split(' ')[0];
+    if (!acc.includes(groupName)) {
+      acc.push(groupName);
+    }
+    return acc;
+  }, ['All'] as string[]);
+
+  const [selectedGroup, setSelectedGroup] = React.useState<string>('All');
+
+  const filteredLeaderboard = selectedGroup === 'All' 
+    ? leaderboard 
+    : leaderboard.filter(entry => entry.teamName.startsWith(selectedGroup));
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -43,13 +59,28 @@ const LeagueLeaderboard = () => {
         </div>
         
         <div className="bg-white p-6 rounded-lg shadow-sm">
-          <h1 className="text-2xl font-bold mb-6">League Leaderboard</h1>
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-2xl font-bold">League Leaderboard</h1>
+            
+            <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select group" />
+              </SelectTrigger>
+              <SelectContent>
+                {groups.map((group) => (
+                  <SelectItem key={group} value={group}>
+                    {group}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           
           {isLoading ? (
             <div className="py-8 text-center">Loading leaderboard...</div>
           ) : (
             <LeaderboardTable 
-              entries={leaderboard} 
+              entries={filteredLeaderboard} 
               leagueId={leagueIdNum} 
               showAvgPoints={true} 
             />

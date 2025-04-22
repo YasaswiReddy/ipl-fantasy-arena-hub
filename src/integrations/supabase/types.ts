@@ -437,6 +437,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_player_to_team: {
+        Args: { team_name: string; player_name: string }
+        Returns: undefined
+      }
       setup_cricket_update_cron: {
         Args: Record<PropertyKey, never>
         Returns: Json

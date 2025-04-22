@@ -9,15 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ChevronLeft } from "lucide-react";
 import { format } from "date-fns";
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer 
-} from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 const PlayerDetailPage = () => {
   const { playerId } = useParams<{ playerId: string }>();
@@ -28,23 +20,18 @@ const PlayerDetailPage = () => {
     queryKey: ["player", playerIdNum],
     queryFn: async () => {
       if (!playerIdNum) throw new Error("Player ID is required");
+      const performances = await api.getPlayerPerformances(playerIdNum);
       
-      // Combine player details with performance data
-      const playerPerformances = await api.getPlayerPerformances(playerIdNum);
-      
-      // Mock player data that would normally come from the API
-      const playerData = {
+      return {
         id: playerIdNum,
-        name: "Player Name",
-        role: "Batsman" as const,
-        iplTeam: "Team Name",
+        name: performances[0]?.playerName || "Unknown Player",
+        role: "Unknown" as const,
+        iplTeam: performances[0]?.team || "Unknown Team",
         iplTeamLogo: "/placeholder.svg",
         photoUrl: "/placeholder.svg",
-        seasonPoints: playerPerformances.reduce((sum, perf) => sum + perf.points, 0),
-        performances: playerPerformances,
+        seasonPoints: performances.reduce((sum, p) => sum + p.points, 0),
+        performances,
       };
-      
-      return playerData;
     },
     enabled: !!playerIdNum,
   });
@@ -79,50 +66,43 @@ const PlayerDetailPage = () => {
           <div className="py-12 text-center">Loading player details...</div>
         ) : player ? (
           <>
-            {/* Player Hero Section */}
-            <Card className="mb-6 overflow-hidden">
-              <div className="bg-ipl-gradient text-white p-6">
-                <div className="flex flex-col md:flex-row items-center gap-6">
+            <Card className="mb-6">
+              <CardHeader className="bg-ipl-gradient text-white">
+                <div className="flex items-center gap-6">
                   <div className="w-24 h-24 rounded-full overflow-hidden bg-white/20">
                     <img 
-                      src={player.photoUrl || "/placeholder.svg"} 
+                      src={player.photoUrl} 
                       alt={player.name} 
                       className="w-full h-full object-cover"
                     />
                   </div>
                   
-                  <div className="flex-1 text-center md:text-left">
-                    <h1 className="text-2xl font-bold">{player.name}</h1>
-                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-2">
-                      <div className="bg-white/20 px-3 py-1 rounded-full text-sm">
-                        {player.role}
+                  <div>
+                    <CardTitle>{player.name}</CardTitle>
+                    <div className="flex items-center mt-2">
+                      <div className="w-5 h-5 mr-2">
+                        <img 
+                          src={player.iplTeamLogo} 
+                          alt={player.iplTeam} 
+                          className="w-full h-full object-contain"
+                        />
                       </div>
-                      <div className="flex items-center">
-                        <div className="w-5 h-5 mr-1 bg-white rounded-full p-0.5">
-                          <img 
-                            src={player.iplTeamLogo || "/placeholder.svg"} 
-                            alt={player.iplTeam} 
-                            className="w-full h-full object-contain"
-                          />
-                        </div>
-                        <span className="text-sm">{player.iplTeam}</span>
-                      </div>
+                      <span className="opacity-90">{player.iplTeam}</span>
                     </div>
                   </div>
                   
-                  <div className="bg-white/10 p-4 rounded-lg text-center min-w-28">
+                  <div className="ml-auto text-center">
                     <div className="text-3xl font-bold">{player.seasonPoints}</div>
-                    <div className="text-xs mt-1 opacity-80">SEASON POINTS</div>
+                    <div className="text-sm opacity-80">Season Points</div>
                   </div>
                 </div>
-              </div>
+              </CardHeader>
             </Card>
             
-            {/* Stats Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div className="grid gap-6 md:grid-cols-2 mb-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Points Trend</CardTitle>
+                  <CardTitle>Points Trend</CardTitle>
                 </CardHeader>
                 <CardContent className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
@@ -131,12 +111,7 @@ const PlayerDetailPage = () => {
                       <XAxis dataKey="date" />
                       <YAxis />
                       <Tooltip />
-                      <Line 
-                        type="monotone" 
-                        dataKey="points" 
-                        stroke="#004c93" 
-                        activeDot={{ r: 8 }} 
-                      />
+                      <Line type="monotone" dataKey="points" stroke="#0284c7" strokeWidth={2} dot={{ r: 4 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -144,32 +119,32 @@ const PlayerDetailPage = () => {
               
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Performance Stats</CardTitle>
+                  <CardTitle>Performance Summary</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-muted/30 p-4 rounded-md text-center">
+                    <div className="bg-muted/30 p-4 rounded-lg text-center">
                       <div className="text-2xl font-bold">
                         {player.performances.length}
                       </div>
                       <div className="text-sm text-muted-foreground">Matches</div>
                     </div>
                     
-                    <div className="bg-muted/30 p-4 rounded-md text-center">
+                    <div className="bg-muted/30 p-4 rounded-lg text-center">
                       <div className="text-2xl font-bold">
                         {Math.round(player.seasonPoints / player.performances.length)}
                       </div>
                       <div className="text-sm text-muted-foreground">Avg Points</div>
                     </div>
                     
-                    <div className="bg-muted/30 p-4 rounded-md text-center">
+                    <div className="bg-muted/30 p-4 rounded-lg text-center">
                       <div className="text-2xl font-bold">
                         {Math.max(...player.performances.map(p => p.points))}
                       </div>
-                      <div className="text-sm text-muted-foreground">Highest</div>
+                      <div className="text-sm text-muted-foreground">Best</div>
                     </div>
                     
-                    <div className="bg-muted/30 p-4 rounded-md text-center">
+                    <div className="bg-muted/30 p-4 rounded-lg text-center">
                       <div className="text-2xl font-bold">
                         {Math.min(...player.performances.map(p => p.points))}
                       </div>
@@ -180,10 +155,9 @@ const PlayerDetailPage = () => {
               </Card>
             </div>
             
-            {/* Match-wise Fantasy Points */}
             <Card>
               <CardHeader>
-                <CardTitle>Match-wise Fantasy Points</CardTitle>
+                <CardTitle>Match Performance Details</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -191,7 +165,10 @@ const PlayerDetailPage = () => {
                     <TableRow>
                       <TableHead>Date</TableHead>
                       <TableHead>Opponent</TableHead>
-                      <TableHead className="text-right">Points</TableHead>
+                      <TableHead className="text-right">Batting Pts</TableHead>
+                      <TableHead className="text-right">Bowling Pts</TableHead>
+                      <TableHead className="text-right">Fielding Pts</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -201,6 +178,28 @@ const PlayerDetailPage = () => {
                           {format(new Date(perf.date), 'dd MMM yyyy')}
                         </TableCell>
                         <TableCell>{perf.opponent}</TableCell>
+                        <TableCell className="text-right">
+                          {perf.runs ? (
+                            <div className="text-xs">
+                              {perf.runs} runs
+                            </div>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {perf.wickets ? (
+                            <div className="text-xs">
+                              {perf.wickets} wkts
+                            </div>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {(perf.catches || perf.stumpings) ? (
+                            <div className="text-xs">
+                              {perf.catches ? `${perf.catches} ct` : ''} 
+                              {perf.stumpings ? `${perf.stumpings} st` : ''}
+                            </div>
+                          ) : '-'}
+                        </TableCell>
                         <TableCell className="text-right font-medium">
                           {perf.points}
                         </TableCell>

@@ -8,6 +8,14 @@ import PlayerCard from "@/components/PlayerCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const TeamDetail = () => {
   const { leagueId, teamId } = useParams<{ leagueId: string; teamId: string }>();
@@ -31,6 +39,10 @@ const TeamDetail = () => {
     } else {
       navigate("/home");
     }
+  };
+
+  const handlePlayerClick = (playerId: number) => {
+    navigate(`/player/${playerId}`);
   };
 
   return (
@@ -82,18 +94,69 @@ const TeamDetail = () => {
               </CardContent>
             </Card>
             
-            <h2 className="text-2xl font-bold mb-4">Fantasy Team Sheet</h2>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {team.players.map((player) => (
-                <PlayerCard 
-                  key={player.id} 
-                  player={player} 
-                  isCaptain={player.id === team.captainId}
-                  isViceCaptain={player.id === team.viceCaptainId}
-                />
-              ))}
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Team Players</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Player</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Team</TableHead>
+                      <TableHead className="text-right">Season Points</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {team.players.map((player) => (
+                      <TableRow 
+                        key={player.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => handlePlayerClick(player.id)}
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full overflow-hidden bg-muted">
+                              <img 
+                                src={player.photoUrl || "/placeholder.svg"} 
+                                alt={player.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div>
+                              <div className="font-medium">{player.name}</div>
+                              {player.id === team.captainId && (
+                                <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">C</span>
+                              )}
+                              {player.id === team.viceCaptainId && (
+                                <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded ml-1">VC</span>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{player.role}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4">
+                              <img 
+                                src={player.iplTeamLogo || "/placeholder.svg"} 
+                                alt={player.iplTeam} 
+                                className="w-full h-full object-contain"
+                              />
+                            </div>
+                            {player.iplTeam}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {player.seasonPoints}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           </>
         ) : (
           <div className="py-12 text-center">Team not found</div>
