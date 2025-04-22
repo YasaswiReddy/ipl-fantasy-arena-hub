@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { League, Player, FantasyTeam, Match, PlayerPerformance } from "@/types";
 import { dataTransformService } from "./dataTransformService";
@@ -148,6 +149,14 @@ export const supabaseService = {
         return {
           success: true,
           message: `Cricket data fetch reported: ${data.result.fixtures_count} fixtures, ${data.result.players_count} players, but couldn't verify database count. Error: ${countError.message}`
+        };
+      }
+      
+      // Add specific error message if fixtures failed to save
+      if (data.result.fixture_errors > 0 && data.result.fixtures_saved === 0) {
+        return {
+          success: false,
+          message: `Failed to save any fixtures (${data.result.fixture_errors} errors). Common issues might be data type mismatches. Check edge function logs for details.`
         };
       }
       

@@ -104,9 +104,19 @@ serve(async (req) => {
       console.log("Upserting fixtures to database...");
       for (const fixture of fixtures) {
         try {
+          // Clean and parse the round field
+          let roundValue = null;
+          if (fixture.round) {
+            // Try to extract a number from the round string (e.g., "48th Match" -> 48)
+            const roundMatch = String(fixture.round).match(/^(\d+)/);
+            if (roundMatch && roundMatch[1]) {
+              roundValue = parseInt(roundMatch[1], 10);
+            }
+          }
+          
           const fixtureData = {
             id: fixture.id,
-            round: fixture.round,
+            round: roundValue,
             local_team_id: fixture.localteam_id,
             visitor_team_id: fixture.visitorteam_id,
             starting_at: fixture.starting_at,
