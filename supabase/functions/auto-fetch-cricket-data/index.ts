@@ -104,13 +104,41 @@ serve(async (req) => {
       console.log("Upserting fixtures to database...");
       for (const fixture of fixtures) {
         try {
-          // Clean and parse the round field
+          // Clean and parse the round field - improved to handle special cases
           let roundValue = null;
           if (fixture.round) {
-            // Try to extract a number from the round string (e.g., "48th Match" -> 48)
-            const roundMatch = String(fixture.round).match(/^(\d+)/);
+            // First try to extract a number from the round string (e.g., "48th Match" -> 48)
+            const roundStr = String(fixture.round);
+            const roundMatch = roundStr.match(/^(\d+)/);
+            
             if (roundMatch && roundMatch[1]) {
+              // Regular numbered round
               roundValue = parseInt(roundMatch[1], 10);
+            } else {
+              // Special round names like "Final", "Semi-Final", etc.
+              // Store special rounds as high numbers to maintain chronological order
+              const specialRounds = {
+                "qualifier": 90,
+                "eliminator": 91,
+                "qualifier 2": 92, 
+                "semi": 93,
+                "semi-final": 93,
+                "final": 99
+              };
+              
+              // Convert to lowercase and check for special rounds
+              const lowerRound = roundStr.toLowerCase();
+              for (const [name, value] of Object.entries(specialRounds)) {
+                if (lowerRound.includes(name)) {
+                  roundValue = value;
+                  console.log(`Converted special round "${roundStr}" to value ${roundValue}`);
+                  break;
+                }
+              }
+              
+              if (roundValue === null) {
+                console.log(`Unknown round format: "${roundStr}", storing as null`);
+              }
             }
           }
           
@@ -594,3 +622,4 @@ serve(async (req) => {
     );
   }
 });
+
