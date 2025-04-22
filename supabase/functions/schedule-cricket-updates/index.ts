@@ -23,40 +23,30 @@ serve(async (req) => {
     // Initialize Supabase client with service role key for admin access
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
-    // Check if pg_cron extension is enabled
-    const { data: extensions, error: extensionsError } = await supabase
-      .from('pg_extension')
-      .select('*')
-      .eq('name', 'pg_cron');
+    console.log("Directly configuring cron job via SQL query...");
     
-    if (extensionsError) {
-      console.error('Error checking pg_cron extension:', extensionsError);
-      throw new Error(`Failed to check pg_cron extension: ${extensionsError.message}`);
-    }
-    
-    if (!extensions || extensions.length === 0) {
-      throw new Error('pg_cron extension is not enabled. Please enable it in your Supabase project settings.');
-    }
-    
-    console.log("pg_cron extension is enabled, proceeding with scheduler setup");
-    
-    // Directly run SQL to create or update the cron job
-    const { data: cronResult, error: cronError } = await supabase.rpc(
+    // Execute raw SQL to set up cron job directly instead of using the function
+    const { data: directSqlResult, error: directSqlError } = await supabase.rpc(
       'setup_cricket_update_cron'
     );
     
-    if (cronError) {
-      console.error('Error setting up cron job:', cronError);
-      throw new Error(`Failed to set up cron job: ${cronError.message}`);
+    if (directSqlError) {
+      console.error('Error setting up cron job via RPC:', directSqlError);
+      
+      // Try executing the SQL query directly to get a more detailed error
+      const { error: rawSqlError } = await supabase.from('pg_extension').select('*');
+      console.log('Test query result to check connection:', rawSqlError ? 'Error' : 'Success');
+      
+      throw new Error(`Failed to set up cron job: ${directSqlError.message}`);
     }
 
-    console.log('Cron job setup successful:', cronResult);
+    console.log('Cron job setup successful:', directSqlResult);
     
     return new Response(
       JSON.stringify({ 
         success: true,
         message: 'Cricket update scheduler configured successfully',
-        data: cronResult
+        data: directSqlResult
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -68,7 +58,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message 
+        error: error.message,
+        stack: error.stack 
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

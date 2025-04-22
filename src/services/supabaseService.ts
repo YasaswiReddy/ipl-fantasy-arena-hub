@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { League, Player, FantasyTeam, Match, PlayerPerformance } from "@/types";
 import { dataTransformService } from "./dataTransformService";
@@ -146,18 +145,39 @@ export const supabaseService = {
   
   async setupCricketUpdateScheduler(): Promise<{ success: boolean; message: string }> {
     try {
-      const { data, error } = await supabase.functions.invoke('schedule-cricket-updates', {
+      console.log("Attempting to set up cricket update scheduler...");
+      const response = await supabase.functions.invoke('schedule-cricket-updates', {
         body: {}
       });
       
-      if (error) throw error;
+      console.log("Edge function response:", response);
+      
+      if (response.error) {
+        console.error("Edge function returned an error:", response.error);
+        return { 
+          success: false, 
+          message: `Error: ${response.error.message || 'Unknown error from edge function'}`
+        };
+      }
+      
+      if (!response.data) {
+        console.error("Edge function returned no data");
+        return { 
+          success: false, 
+          message: 'Error: Edge function returned no data'
+        };
+      }
+      
       return { 
         success: true, 
         message: `Cricket update scheduler configured: Updates will run every 5 minutes` 
       };
     } catch (error) {
       console.error("Error setting up scheduler:", error);
-      return { success: false, message: `Error: ${error.message || 'Unknown error'}` };
+      return { 
+        success: false, 
+        message: `Error: ${error.message || 'Unknown error'}`
+      };
     }
   }
 };
