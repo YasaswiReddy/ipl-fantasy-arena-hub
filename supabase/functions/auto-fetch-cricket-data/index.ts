@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
 
@@ -35,6 +34,8 @@ serve(async (req) => {
       
       // Fetch fixtures
       const fixturesUrl = `https://cricket.sportmonks.com/api/v2.0/fixtures?filter[league_id]=${LEAGUE_ID}&filter[season_id]=${SEASON_ID}&api_token=${API_TOKEN}`;
+      console.log(`Fetching fixtures from URL: ${fixturesUrl.replace(API_TOKEN, 'API_TOKEN_HIDDEN')}`);
+      
       const fixturesResponse = await fetch(fixturesUrl);
       
       if (!fixturesResponse.ok) {
@@ -44,9 +45,10 @@ serve(async (req) => {
       }
       
       const fixturesData = await fixturesResponse.json();
-      const fixtures = fixturesData.data || [];
+      console.log("Fixtures API response structure:", JSON.stringify(Object.keys(fixturesData)));
       
-      console.log(`Fetched ${fixtures.length} fixtures from API`);
+      const fixtures = fixturesData.data || [];
+      console.log(`Fetched ${fixtures.length} fixtures from API. First fixture:`, fixtures.length > 0 ? JSON.stringify(fixtures[0]) : "No fixtures");
 
       // Fetch players for each team
       const playersData = [];
@@ -76,38 +78,101 @@ serve(async (req) => {
       
       console.log(`Fetched ${playersData.length} players from API`);
 
-      // Upsert fixtures
+      // Verify Supabase connection
+      try {
+        const { data: healthCheck, error: healthError } = await supabase.rpc('version');
+        if (healthError) {
+          console.error("Supabase connection error:", healthError);
+          throw new Error(`Database connection error: ${healthError.message}`);
+        }
+        console.log("Supabase connection verified:", healthCheck ? "Connected" : "Failed");
+      } catch (e) {
+        console.error("Error checking Supabase connection:", e);
+        throw new Error(`Database verification error: ${e.message}`);
+      }
+
+      // Upsert fixtures with individual error handling
       let successfulFixtureUpserts = 0;
+      let fixtureErrorCount = 0;
+      
+      console.log("Upserting fixtures to database...");
       for (const fixture of fixtures) {
-        const { error } = await supabase.from('fixtures').upsert({
-          id: fixture.id,
-          round: fixture.round,
-          local_team_id: fixture.localteam_id,
-          visitor_team_id: fixture.visitorteam_id,
-          starting_at: fixture.starting_at,
-        });
-        
-        if (error) {
-          console.error(`Error upserting fixture ${fixture.id}:`, error);
-        } else {
-          successfulFixtureUpserts++;
+        try {
+          const fixtureData = {
+            id: fixture.id,
+            round: fixture.round,
+            local_team_id: fixture.localteam_id,
+            visitor_team_id: fixture.visitorteam_id,
+            starting_at: fixture.starting_at,
+          };
+          
+          console.log(`Upserting fixture ${fixture.id}, data:`, JSON.stringify(fixtureData));
+          
+          const { data, error } = await supabase
+            .from('fixtures')
+            .upsert(fixtureData)
+            .select();
+          
+          if (error) {
+            console.error(`Error upserting fixture ${fixture.id}:`, error);
+            fixtureErrorCount++;
+          } else {
+            console.log(`Successfully upserted fixture ${fixture.id}. Response:`, data ? JSON.stringify(data) : "No data returned");
+            successfulFixtureUpserts++;
+          }
+        } catch (err) {
+          console.error(`Exception upserting fixture ${fixture.id}:`, err);
+          fixtureErrorCount++;
         }
       }
 
-      // Upsert players
+      // Upsert players with individual error handling
       let successfulPlayerUpserts = 0;
+      let playerErrorCount = 0;
+      
+      console.log("Upserting players to database...");
       for (const player of playersData) {
-        const { error } = await supabase.from('players').upsert(player);
-        
-        if (error) {
-          console.error(`Error upserting player ${player.id}:`, error);
-        } else {
-          successfulPlayerUpserts++;
+        try {
+          const { error } = await supabase.from('players').upsert(player);
+          
+          if (error) {
+            console.error(`Error upserting player ${player.id}:`, error);
+            playerErrorCount++;
+          } else {
+            successfulPlayerUpserts++;
+          }
+        } catch (err) {
+          console.error(`Exception upserting player ${player.id}:`, err);
+          playerErrorCount++;
         }
       }
 
-      console.log(`Initial data fetch completed: ${successfulFixtureUpserts}/${fixtures.length} fixtures, ${successfulPlayerUpserts}/${playersData.length} players saved to database`);
-      return { fixtures_count: fixtures.length, players_count: playersData.length };
+      // Verify fixtures were saved
+      try {
+        const { data: savedFixtures, error: checkError } = await supabase
+          .from('fixtures')
+          .select('count')
+          .limit(1)
+          .single();
+        
+        if (checkError) {
+          console.error("Error checking saved fixtures:", checkError);
+        } else {
+          console.log("Fixture count in database:", savedFixtures?.count || 0);
+        }
+      } catch (err) {
+        console.error("Exception checking fixture count:", err);
+      }
+
+      console.log(`Initial data fetch completed: ${successfulFixtureUpserts}/${fixtures.length} fixtures (${fixtureErrorCount} errors), ${successfulPlayerUpserts}/${playersData.length} players (${playerErrorCount} errors) saved to database`);
+      return { 
+        fixtures_count: fixtures.length, 
+        players_count: playersData.length,
+        fixtures_saved: successfulFixtureUpserts,
+        players_saved: successfulPlayerUpserts,
+        fixture_errors: fixtureErrorCount,
+        player_errors: playerErrorCount
+      };
     }
 
     // Function to fetch performance data for a specific fixture

@@ -112,14 +112,41 @@ export const supabaseService = {
   // Cricket data fetch operations
   async fetchCricketData(): Promise<{ success: boolean; message: string }> {
     try {
+      console.log("Initiating cricket data fetch...");
       const { data, error } = await supabase.functions.invoke('auto-fetch-cricket-data', {
         body: { action: 'fetch-initial-data' }
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error from edge function:", error);
+        throw error;
+      }
+      
+      console.log("Response from edge function:", data);
+      
+      if (!data || !data.result) {
+        return { 
+          success: false, 
+          message: "Invalid response from server" 
+        };
+      }
+      
+      // Verify fixtures were actually saved
+      const { count: fixtureCount, error: countError } = await supabase
+        .from('fixtures')
+        .select('*', { count: 'exact', head: true });
+      
+      if (countError) {
+        console.error("Error checking fixture count:", countError);
+        return {
+          success: true,
+          message: `Cricket data fetch reported: ${data.result.fixtures_count} fixtures, ${data.result.players_count} players, but couldn't verify database count.`
+        };
+      }
+      
       return { 
         success: true, 
-        message: `Successfully fetched cricket data: ${data.result.fixtures_count} fixtures, ${data.result.players_count} players` 
+        message: `Successfully fetched cricket data: ${data.result.fixtures_count} fixtures (${data.result.fixtures_saved} saved), ${data.result.players_count} players (${data.result.players_saved} saved). Database contains ${fixtureCount} fixtures total.` 
       };
     } catch (error) {
       console.error("Error fetching cricket data:", error);
