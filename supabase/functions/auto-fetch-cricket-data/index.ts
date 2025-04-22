@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
 
@@ -78,14 +79,19 @@ serve(async (req) => {
       
       console.log(`Fetched ${playersData.length} players from API`);
 
-      // Verify Supabase connection
+      // Verify Supabase connection - using a simple table check instead of RPC
       try {
-        const { data: healthCheck, error: healthError } = await supabase.rpc('version');
-        if (healthError) {
-          console.error("Supabase connection error:", healthError);
-          throw new Error(`Database connection error: ${healthError.message}`);
+        console.log("Verifying Supabase connection...");
+        const { error: connectionError } = await supabase
+          .from('fixtures')
+          .select('id')
+          .limit(1);
+          
+        if (connectionError) {
+          console.error("Supabase connection error:", connectionError);
+          throw new Error(`Database connection error: ${connectionError.message}`);
         }
-        console.log("Supabase connection verified:", healthCheck ? "Connected" : "Failed");
+        console.log("Supabase connection verified successfully");
       } catch (e) {
         console.error("Error checking Supabase connection:", e);
         throw new Error(`Database verification error: ${e.message}`);
@@ -149,16 +155,14 @@ serve(async (req) => {
 
       // Verify fixtures were saved
       try {
-        const { data: savedFixtures, error: checkError } = await supabase
+        const { count, error: checkError } = await supabase
           .from('fixtures')
-          .select('count')
-          .limit(1)
-          .single();
+          .select('*', { count: 'exact', head: true });
         
         if (checkError) {
           console.error("Error checking saved fixtures:", checkError);
         } else {
-          console.log("Fixture count in database:", savedFixtures?.count || 0);
+          console.log("Fixture count in database:", count || 0);
         }
       } catch (err) {
         console.error("Exception checking fixture count:", err);

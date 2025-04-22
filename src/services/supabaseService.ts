@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { League, Player, FantasyTeam, Match, PlayerPerformance } from "@/types";
 import { dataTransformService } from "./dataTransformService";
@@ -113,16 +112,22 @@ export const supabaseService = {
   async fetchCricketData(): Promise<{ success: boolean; message: string }> {
     try {
       console.log("Initiating cricket data fetch...");
-      const { data, error } = await supabase.functions.invoke('auto-fetch-cricket-data', {
+      
+      const response = await supabase.functions.invoke('auto-fetch-cricket-data', {
         body: { action: 'fetch-initial-data' }
       });
       
-      if (error) {
-        console.error("Error from edge function:", error);
-        throw error;
+      console.log("Response from edge function:", response);
+      
+      if (response.error) {
+        console.error("Error from edge function:", response.error);
+        return { 
+          success: false, 
+          message: `Error from edge function: ${response.error.message || 'Unknown error'}` 
+        };
       }
       
-      console.log("Response from edge function:", data);
+      const data = response.data;
       
       if (!data || !data.result) {
         return { 
@@ -136,11 +141,13 @@ export const supabaseService = {
         .from('fixtures')
         .select('*', { count: 'exact', head: true });
       
+      console.log("Fixture count check result:", fixtureCount, countError);
+      
       if (countError) {
         console.error("Error checking fixture count:", countError);
         return {
           success: true,
-          message: `Cricket data fetch reported: ${data.result.fixtures_count} fixtures, ${data.result.players_count} players, but couldn't verify database count.`
+          message: `Cricket data fetch reported: ${data.result.fixtures_count} fixtures, ${data.result.players_count} players, but couldn't verify database count. Error: ${countError.message}`
         };
       }
       
@@ -150,7 +157,10 @@ export const supabaseService = {
       };
     } catch (error) {
       console.error("Error fetching cricket data:", error);
-      return { success: false, message: `Error: ${error.message || 'Unknown error'}` };
+      return { 
+        success: false, 
+        message: `Error: ${error.message || 'Unknown error'}`
+      };
     }
   },
   
@@ -158,16 +168,21 @@ export const supabaseService = {
     try {
       console.log("Checking and updating fixtures...");
       
-      const { data, error } = await supabase.functions.invoke('auto-fetch-cricket-data', {
+      const response = await supabase.functions.invoke('auto-fetch-cricket-data', {
         body: { action: 'check-and-update' }
       });
       
-      if (error) {
-        console.error("Error from edge function:", error);
-        throw error;
+      console.log("Response from edge function:", response);
+      
+      if (response.error) {
+        console.error("Error from edge function:", response.error);
+        return { 
+          success: false, 
+          message: `Error from edge function: ${response.error.message || 'Unknown error'}` 
+        };
       }
       
-      console.log("Response from edge function:", data);
+      const data = response.data;
       
       if (!data || !data.result) {
         return { 
@@ -182,7 +197,10 @@ export const supabaseService = {
       };
     } catch (error) {
       console.error("Error updating fixtures:", error);
-      return { success: false, message: `Error: ${error.message || 'Unknown error'}` };
+      return { 
+        success: false, 
+        message: `Error: ${error.message || 'Unknown error'}` 
+      };
     }
   },
   
