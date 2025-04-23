@@ -37,11 +37,12 @@ const LeagueLeaderboard = () => {
   const leagueIdNum = leagueId ? parseInt(leagueId) : null;
 
   // Fetch league info to display the league name
-  const { data: leagueInfo, isLoading: leagueLoading } = useQuery({
+  const { data: leagueInfo, isLoading: leagueLoading, error: leagueError } = useQuery({
     queryKey: ["league", leagueIdNum],
     queryFn: async () => {
       if (!leagueIdNum) throw new Error("League ID is required");
       
+      console.log("Fetching league info for:", leagueIdNum);
       const { data, error } = await supabase
         .from("leagues")
         .select("name")
@@ -54,6 +55,7 @@ const LeagueLeaderboard = () => {
         throw error;
       }
       
+      console.log("League info fetched:", data);
       return data;
     },
     enabled: !!leagueIdNum,
@@ -65,6 +67,7 @@ const LeagueLeaderboard = () => {
     queryFn: async () => {
       if (!leagueIdNum) return [];
       
+      console.log("Fetching teams for league:", leagueIdNum);
       // Get fantasy teams for the league, including captain, vice_captain, and players
       const { data, error } = await supabase
         .from("fantasy_teams")
@@ -85,6 +88,7 @@ const LeagueLeaderboard = () => {
         return [];
       }
 
+      console.log("Teams fetched:", data);
       return data.map((team: any) => ({
         id: team.id,
         name: team.name,
@@ -114,6 +118,7 @@ const LeagueLeaderboard = () => {
     queryFn: async () => {
       if (!allPlayerIds.length) return [];
       
+      console.log("Fetching scores for players:", allPlayerIds);
       const { data, error } = await supabase
         .from("fantasy_scores")
         .select(`player_id, total_points`)
@@ -125,6 +130,7 @@ const LeagueLeaderboard = () => {
         return [];
       }
       
+      console.log("Scores fetched:", data);
       return data;
     },
     enabled: !!allPlayerIds.length && allPlayerIds.length > 0,
@@ -135,6 +141,7 @@ const LeagueLeaderboard = () => {
   const leaderboard: EntryWithScore[] = useMemo(() => {
     if (!teams.length) return [];
 
+    console.log("Calculating leaderboard with teams:", teams.length, "and scores:", scores.length);
     const playerPointsMap: { [key: number]: number } = {};
     for (const row of scores) {
       playerPointsMap[row.player_id] = row.total_points || 0;
@@ -188,10 +195,17 @@ const LeagueLeaderboard = () => {
     );
   }, [leaderboard, selectedGroup]);
 
+  // Provide more detailed error messages for debugging
+  const totalErrors = [leagueError, teamsError, scoresError].filter(Boolean).length;
+  const hasErrors = totalErrors > 0;
+  
+  if (hasErrors) {
+    console.error("Errors detected:", { leagueError, teamsError, scoresError });
+  }
+
   const loading = leagueLoading || teamsLoading || scoresLoading;
-  const error = teamsError || scoresError;
-  const hasData = !loading && !error && filteredLeaderboard.length > 0;
-  const noData = !loading && !error && filteredLeaderboard.length === 0;
+  const hasData = !loading && !hasErrors && filteredLeaderboard.length > 0;
+  const noData = !loading && !hasErrors && filteredLeaderboard.length === 0;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -239,9 +253,9 @@ const LeagueLeaderboard = () => {
               </div>
             )}
             
-            {error && (
+            {hasErrors && (
               <div className="py-8 text-center text-red-500">
-                Error loading leaderboard data. Please try again.
+                Error loading leaderboard data: {totalErrors} error(s) encountered. Please check the console for details.
               </div>
             )}
             

@@ -18,6 +18,8 @@ const LeaderboardTable = ({ entries, leagueId }: LeaderboardTableProps) => {
   const [sortColumn, setSortColumn] = useState<SortColumn>('rank');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
+  console.log("LeaderboardTable received entries:", entries);
+
   const sortedEntries = [...entries].sort((a, b) => {
     let comparison = 0;
     if (sortColumn === 'teamName') {
