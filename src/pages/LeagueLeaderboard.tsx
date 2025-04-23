@@ -20,7 +20,7 @@ import { toast } from "@/components/ui/sonner";
 interface TeamWithPlayers {
   id: number;
   name: string;
-  leagueId: number | null; // Added this property to fix the TypeScript error
+  leagueId: number | null;
   captainId: number | null;
   viceCaptainId: number | null;
   players: { id: number; name: string }[];
@@ -102,14 +102,17 @@ const LeagueLeaderboard = () => {
     [teams]
   );
 
+  // Fixed: Requesting all fantasy scores for players and aggregating by player_id
   const { data: scores = [], isLoading: scoresLoading, error: scoresError } = useQuery<any[]>({
     queryKey: ["fantasyScoresLeaderboard", allPlayerIds],
     queryFn: async () => {
       if (!allPlayerIds.length) return [];
       console.log("Fetching scores for players:", allPlayerIds);
+      
+      // Get scores across ALL fixtures for each player
       const { data, error } = await supabase
         .from("fantasy_scores")
-        .select(`player_id, total_points`)
+        .select(`player_id, total_points, fixture_id`)
         .in("player_id", allPlayerIds);
 
       if (error) {
@@ -117,8 +120,27 @@ const LeagueLeaderboard = () => {
         toast.error("Failed to fetch player scores");
         return [];
       }
-      console.log("Scores data:", data);
-      return data;
+      
+      console.log("Raw scores data:", data);
+      
+      // Aggregate scores by player_id
+      const aggregatedScores = data.reduce((acc: {[key: number]: number}, score) => {
+        const playerId = score.player_id;
+        if (!acc[playerId]) {
+          acc[playerId] = 0;
+        }
+        acc[playerId] += (score.total_points || 0);
+        return acc;
+      }, {});
+      
+      // Convert to array format for consistency with existing code
+      const processedScores = Object.entries(aggregatedScores).map(([playerId, totalPoints]) => ({
+        player_id: parseInt(playerId),
+        total_points: totalPoints
+      }));
+      
+      console.log("Aggregated scores by player:", processedScores);
+      return processedScores;
     },
     enabled: !!allPlayerIds.length && allPlayerIds.length > 0,
     retry: 1,
