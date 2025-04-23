@@ -1,4 +1,3 @@
-
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { LeaderboardEntry } from "@/types";
 import { useNavigate } from "react-router-dom";
@@ -6,28 +5,26 @@ import { useState } from "react";
 import { ChevronUp, ChevronDown } from "lucide-react";
 
 interface LeaderboardTableProps {
-  entries: LeaderboardEntry[];
+  entries: { rank: number; teamId: number; teamName: string; totalPoints: number; }[];
   leagueId: number | null;
   showAvgPoints?: boolean;
 }
 
-type SortColumn = 'rank' | 'teamName' | 'totalPoints' | 'weeklyPoints' | 'avgPointsPerMatch';
+type SortColumn = 'rank' | 'teamName' | 'totalPoints';
 type SortDirection = 'asc' | 'desc';
 
-const LeaderboardTable = ({ entries, leagueId, showAvgPoints = false }: LeaderboardTableProps) => {
+const LeaderboardTable = ({ entries, leagueId }: LeaderboardTableProps) => {
   const navigate = useNavigate();
   const [sortColumn, setSortColumn] = useState<SortColumn>('rank');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const sortedEntries = [...entries].sort((a, b) => {
     let comparison = 0;
-    
     if (sortColumn === 'teamName') {
       comparison = a.teamName.localeCompare(b.teamName);
     } else {
       comparison = (a[sortColumn] || 0) - (b[sortColumn] || 0);
     }
-    
     return sortDirection === 'asc' ? comparison : -comparison;
   });
 
@@ -48,7 +45,9 @@ const LeaderboardTable = ({ entries, leagueId, showAvgPoints = false }: Leaderbo
 
   const SortIcon = ({ column }: { column: SortColumn }) => {
     if (sortColumn !== column) return null;
-    return sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />;
+    return sortDirection === 'asc'
+      ? <ChevronUp className="h-4 w-4" />
+      : <ChevronDown className="h-4 w-4" />;
   };
 
   return (
@@ -56,48 +55,21 @@ const LeaderboardTable = ({ entries, leagueId, showAvgPoints = false }: Leaderbo
       <Table>
         <TableHeader className="bg-slate-100">
           <TableRow>
-            <TableHead 
-              className="w-14 cursor-pointer"
-              onClick={() => handleSort('rank')}
-            >
+            <TableHead className="w-14 cursor-pointer" onClick={() => handleSort('rank')}>
               <div className="flex items-center">
                 <span>Rank</span> <SortIcon column="rank" />
               </div>
             </TableHead>
-            <TableHead 
-              className="cursor-pointer"
-              onClick={() => handleSort('teamName')}
-            >
+            <TableHead className="cursor-pointer" onClick={() => handleSort('teamName')}>
               <div className="flex items-center">
                 <span>Team Name</span> <SortIcon column="teamName" />
               </div>
             </TableHead>
-            <TableHead 
-              className="text-right cursor-pointer"
-              onClick={() => handleSort('totalPoints')}
-            >
+            <TableHead className="text-right cursor-pointer" onClick={() => handleSort('totalPoints')}>
               <div className="flex items-center justify-end">
                 <span>Total Pts</span> <SortIcon column="totalPoints" />
               </div>
             </TableHead>
-            <TableHead 
-              className="text-right cursor-pointer"
-              onClick={() => handleSort('weeklyPoints')}
-            >
-              <div className="flex items-center justify-end">
-                <span>Weekly Pts</span> <SortIcon column="weeklyPoints" />
-              </div>
-            </TableHead>
-            {showAvgPoints && (
-              <TableHead 
-                className="text-right cursor-pointer"
-                onClick={() => handleSort('avgPointsPerMatch')}
-              >
-                <div className="flex items-center justify-end">
-                  <span>Avg Pts/Match</span> <SortIcon column="avgPointsPerMatch" />
-                </div>
-              </TableHead>
-            )}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -112,19 +84,14 @@ const LeaderboardTable = ({ entries, leagueId, showAvgPoints = false }: Leaderbo
                 <TableCell>
                   <div>
                     <div className="font-medium text-primary">{entry.teamName}</div>
-                    <div className="text-xs text-muted-foreground">{entry.ownerName}</div>
                   </div>
                 </TableCell>
                 <TableCell className="text-right font-bold">{entry.totalPoints}</TableCell>
-                <TableCell className="text-right">{entry.weeklyPoints}</TableCell>
-                {showAvgPoints && (
-                  <TableCell className="text-right">{entry.avgPointsPerMatch?.toFixed(1) || 0}</TableCell>
-                )}
               </TableRow>
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={showAvgPoints ? 5 : 4} className="h-24 text-center">
+              <TableCell colSpan={3} className="h-24 text-center">
                 No data available
               </TableCell>
             </TableRow>
