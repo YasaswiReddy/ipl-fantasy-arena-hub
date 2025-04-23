@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -30,81 +29,62 @@ interface EntryWithScore {
   teamId: number;
   teamName: string;
   totalPoints: number;
+  leagueId?: number;
 }
 
 const LeagueLeaderboard = () => {
   const { leagueId } = useParams<{ leagueId: string }>();
   const leagueIdNum = leagueId ? parseInt(leagueId) : null;
 
-  // Fetch league info to display the league name
-  const { data: leagueInfo, isLoading: leagueLoading, error: leagueError } = useQuery({
-    queryKey: ["league", leagueIdNum],
+  // Fetch all leagues for dropdown filter
+  const { data: allLeagues = [], isLoading: leagueLoading, error: leagueError } = useQuery({
+    queryKey: ["leagues-for-leaderboard"],
     queryFn: async () => {
-      if (!leagueIdNum) throw new Error("League ID is required");
-      
-      console.log("Fetching league info for:", leagueIdNum);
-      const { data, error } = await supabase
-        .from("leagues")
-        .select("name")
-        .eq("id", leagueIdNum)
-        .single();
-      
-      if (error) {
-        console.error("Error fetching league info:", error);
-        toast.error("Failed to fetch league information");
-        throw error;
-      }
-      
-      console.log("League info fetched:", data);
+      const { data, error } = await supabase.from("leagues").select("id, name");
+      if (error) throw error;
       return data;
-    },
-    enabled: !!leagueIdNum,
+    }
   });
 
-  // Fetch fantasy teams for the league (with players, captain, vice)
+  // Fetch ALL fantasy teams (no league filter)
   const { data: teams = [], isLoading: teamsLoading, error: teamsError } = useQuery<TeamWithPlayers[]>({
-    queryKey: ["leagueTeams", leagueIdNum],
+    queryKey: ["allFantasyTeams"],
     queryFn: async () => {
-      if (!leagueIdNum) return [];
-      
-      console.log("Fetching teams for league:", leagueIdNum);
-      // Get fantasy teams for the league, including captain, vice_captain, and players
       const { data, error } = await supabase
         .from("fantasy_teams")
         .select(`
           id,
           name,
+          league_id,
           captain_id,
           vice_captain_id,
           fantasy_team_players (
             player_id
           )
-        `)
-        .eq("league_id", leagueIdNum);
+        `);
 
       if (error) {
-        console.error("Error fetching teams:", error);
-        toast.error("Failed to fetch teams in this league");
+        console.error("Error fetching all fantasy teams:", error);
+        toast.error("Failed to fetch fantasy teams");
         return [];
       }
 
-      console.log("Teams fetched:", data);
       return data.map((team: any) => ({
         id: team.id,
         name: team.name,
+        leagueId: team.league_id,
         captainId: team.captain_id,
         viceCaptainId: team.vice_captain_id,
         players: (team.fantasy_team_players || []).map((p: any) => ({
           id: p.player_id,
-          name: ""  // Player name not fetched here, for points calculation below it's not required
+          name: ""
         })),
       }));
     },
-    enabled: !!leagueIdNum,
     retry: 1,
   });
 
-  // Fetch all fantasy scores for these teams' player_ids
+  // Fetch all scores for all players found above
   const allPlayerIds = useMemo(
     () =>
       teams
@@ -112,36 +92,29 @@ const LeagueLeaderboard = () => {
         .filter(Boolean),
     [teams]
   );
-  
+
   const { data: scores = [], isLoading: scoresLoading, error: scoresError } = useQuery<any[]>({
-    queryKey: ["fantasyScores", allPlayerIds],
+    queryKey: ["fantasyScoresLeaderboard", allPlayerIds],
     queryFn: async () => {
       if (!allPlayerIds.length) return [];
-      
-      console.log("Fetching scores for players:", allPlayerIds);
       const { data, error } = await supabase
         .from("fantasy_scores")
         .select(`player_id, total_points`)
         .in("player_id", allPlayerIds);
-        
+
       if (error) {
-        console.error("Error fetching fantasy scores:", error);
         toast.error("Failed to fetch player scores");
         return [];
       }
-      
-      console.log("Scores fetched:", data);
       return data;
     },
     enabled: !!allPlayerIds.length && allPlayerIds.length > 0,
     retry: 1,
   });
 
-  // Calculate team scores (adding 2x for captain, 1.5x for vice captain)
+  // Calculate leaderboard entries
   const leaderboard: EntryWithScore[] = useMemo(() => {
     if (!teams.length) return [];
-
-    console.log("Calculating leaderboard with teams:", teams.length, "and scores:", scores.length);
     const playerPointsMap: { [key: number]: number } = {};
     for (const row of scores) {
       playerPointsMap[row.player_id] = row.total_points || 0;
@@ -160,7 +133,8 @@ const LeagueLeaderboard = () => {
           teamId: team.id,
           teamName: team.name,
           totalPoints: Math.round(total),
-          rank: 0, // Will update sorting and assign rank below
+          leagueId: team.leagueId,
+          rank: 0,
         };
       })
       .sort((a, b) => b.totalPoints - a.totalPoints)
@@ -170,39 +144,23 @@ const LeagueLeaderboard = () => {
       }));
   }, [teams, scores]);
 
-  // For group filter (by prefix)
-  const groups = useMemo(() => {
-    const uniqueGroups = leaderboard.reduce((acc: string[], entry) => {
-      const words = entry.teamName.split(' ');
-      if (words.length > 0) {
-        const groupName = words[0];
-        if (!acc.includes(groupName)) {
-          acc.push(groupName);
-        }
-      }
-      return acc;
-    }, []);
-    
-    return ['All', ...uniqueGroups].filter(Boolean);
-  }, [leaderboard]);
+  // Create league filter options and apply filter
+  const [selectedLeague, setSelectedLeague] = React.useState<string>("all");
 
-  const [selectedGroup, setSelectedGroup] = React.useState<string>('All');
+  const leagueOptions = useMemo(() => [
+    { id: "all", name: "All Leagues" },
+    ...((allLeagues ?? []) as { id: number; name: string }[]),
+  ], [allLeagues]);
 
   const filteredLeaderboard = useMemo(() => {
-    if (selectedGroup === 'All') return leaderboard;
-    return leaderboard.filter((entry) =>
-      entry.teamName.startsWith(selectedGroup)
-    );
-  }, [leaderboard, selectedGroup]);
+    if (selectedLeague === "all") return leaderboard;
+    const leagueIdToFilter = parseInt(selectedLeague);
+    return leaderboard.filter((entry) => entry.leagueId === leagueIdToFilter);
+  }, [leaderboard, selectedLeague]);
 
-  // Provide more detailed error messages for debugging
+  // Error/Loading logic
   const totalErrors = [leagueError, teamsError, scoresError].filter(Boolean).length;
   const hasErrors = totalErrors > 0;
-  
-  if (hasErrors) {
-    console.error("Errors detected:", { leagueError, teamsError, scoresError });
-  }
-
   const loading = leagueLoading || teamsLoading || scoresLoading;
   const hasData = !loading && !hasErrors && filteredLeaderboard.length > 0;
   const noData = !loading && !hasErrors && filteredLeaderboard.length === 0;
@@ -225,25 +183,23 @@ const LeagueLeaderboard = () => {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-2xl font-bold text-primary">
-                {leagueInfo?.name ? `${leagueInfo.name} Leaderboard` : "League Leaderboard"}
+                IPL Fantasy Leaderboard
               </CardTitle>
-              {hasData && (
-                <div className="flex items-center gap-2">
-                  <Filter className="h-4 w-4 text-muted-foreground" />
-                  <Select value={selectedGroup} onValueChange={setSelectedGroup}>
-                    <SelectTrigger className="w-[180px] bg-white">
-                      <SelectValue placeholder="Filter by group" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {groups.map((group) => (
-                        <SelectItem key={group} value={group}>
-                          {group}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select value={selectedLeague} onValueChange={setSelectedLeague}>
+                  <SelectTrigger className="w-[180px] bg-white">
+                    <SelectValue placeholder="Filter by league" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {leagueOptions.map((league) => (
+                      <SelectItem key={league.id} value={league.id.toString()}>
+                        {league.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -252,23 +208,20 @@ const LeagueLeaderboard = () => {
                 Loading leaderboard data...
               </div>
             )}
-            
             {hasErrors && (
               <div className="py-8 text-center text-red-500">
                 Error loading leaderboard data: {totalErrors} error(s) encountered. Please check the console for details.
               </div>
             )}
-            
             {noData && (
               <div className="py-8 text-center text-muted-foreground">
-                No teams found in this league.
+                No teams found.
               </div>
             )}
-            
             {hasData && (
               <LeaderboardTable 
                 entries={filteredLeaderboard}
-                leagueId={leagueIdNum}
+                leagueId={selectedLeague !== "all" ? parseInt(selectedLeague) : null}
                 showAvgPoints={false}
               />
             )}
