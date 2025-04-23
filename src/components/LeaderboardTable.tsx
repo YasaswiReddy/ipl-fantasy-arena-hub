@@ -1,5 +1,5 @@
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { LeaderboardEntry } from "@/types";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { ChevronUp, ChevronDown } from "lucide-react";

@@ -15,6 +15,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "@/components/ui/sonner";
 
 interface TeamWithPlayers {
   id: number;
@@ -35,11 +36,35 @@ const LeagueLeaderboard = () => {
   const { leagueId } = useParams<{ leagueId: string }>();
   const leagueIdNum = leagueId ? parseInt(leagueId) : null;
 
+  // Fetch league info to display the league name
+  const { data: leagueInfo, isLoading: leagueLoading } = useQuery({
+    queryKey: ["league", leagueIdNum],
+    queryFn: async () => {
+      if (!leagueIdNum) throw new Error("League ID is required");
+      
+      const { data, error } = await supabase
+        .from("leagues")
+        .select("name")
+        .eq("id", leagueIdNum)
+        .single();
+      
+      if (error) {
+        console.error("Error fetching league info:", error);
+        toast.error("Failed to fetch league information");
+        throw error;
+      }
+      
+      return data;
+    },
+    enabled: !!leagueIdNum,
+  });
+
   // Fetch fantasy teams for the league (with players, captain, vice)
-  const { data: teams = [], isLoading: teamsLoading } = useQuery<TeamWithPlayers[]>({
+  const { data: teams = [], isLoading: teamsLoading, error: teamsError } = useQuery<TeamWithPlayers[]>({
     queryKey: ["leagueTeams", leagueIdNum],
     queryFn: async () => {
       if (!leagueIdNum) return [];
+      
       // Get fantasy teams for the league, including captain, vice_captain, and players
       const { data, error } = await supabase
         .from("fantasy_teams")
@@ -54,8 +79,9 @@ const LeagueLeaderboard = () => {
         `)
         .eq("league_id", leagueIdNum);
 
-      if (error || !data) {
+      if (error) {
         console.error("Error fetching teams:", error);
+        toast.error("Failed to fetch teams in this league");
         return [];
       }
 
@@ -71,6 +97,7 @@ const LeagueLeaderboard = () => {
       }));
     },
     enabled: !!leagueIdNum,
+    retry: 1,
   });
 
   // Fetch all fantasy scores for these teams' player_ids
@@ -81,26 +108,32 @@ const LeagueLeaderboard = () => {
         .filter(Boolean),
     [teams]
   );
-  const { data: scores = [], isLoading: scoresLoading } = useQuery<any[]>({
+  
+  const { data: scores = [], isLoading: scoresLoading, error: scoresError } = useQuery<any[]>({
     queryKey: ["fantasyScores", allPlayerIds],
     queryFn: async () => {
       if (!allPlayerIds.length) return [];
+      
       const { data, error } = await supabase
         .from("fantasy_scores")
         .select(`player_id, total_points`)
         .in("player_id", allPlayerIds);
-      if (error || !data) {
+        
+      if (error) {
         console.error("Error fetching fantasy scores:", error);
+        toast.error("Failed to fetch player scores");
         return [];
       }
+      
       return data;
     },
-    enabled: !!allPlayerIds.length,
+    enabled: !!allPlayerIds.length && allPlayerIds.length > 0,
+    retry: 1,
   });
 
   // Calculate team scores (adding 2x for captain, 1.5x for vice captain)
   const leaderboard: EntryWithScore[] = useMemo(() => {
-    if (!teams.length || !scores.length) return [];
+    if (!teams.length) return [];
 
     const playerPointsMap: { [key: number]: number } = {};
     for (const row of scores) {
@@ -124,7 +157,7 @@ const LeagueLeaderboard = () => {
         };
       })
       .sort((a, b) => b.totalPoints - a.totalPoints)
-      .map((entry, idx, arr) => ({
+      .map((entry, idx) => ({
         ...entry,
         rank: idx + 1,
       }));
@@ -132,13 +165,18 @@ const LeagueLeaderboard = () => {
 
   // For group filter (by prefix)
   const groups = useMemo(() => {
-    return leaderboard.reduce((acc: string[], entry) => {
-      const groupName = entry.teamName.split(' ')[0];
-      if (!acc.includes(groupName)) {
-        acc.push(groupName);
+    const uniqueGroups = leaderboard.reduce((acc: string[], entry) => {
+      const words = entry.teamName.split(' ');
+      if (words.length > 0) {
+        const groupName = words[0];
+        if (!acc.includes(groupName)) {
+          acc.push(groupName);
+        }
       }
       return acc;
-    }, ['All']);
+    }, []);
+    
+    return ['All', ...uniqueGroups].filter(Boolean);
   }, [leaderboard]);
 
   const [selectedGroup, setSelectedGroup] = React.useState<string>('All');
@@ -150,7 +188,10 @@ const LeagueLeaderboard = () => {
     );
   }, [leaderboard, selectedGroup]);
 
-  const loading = teamsLoading || scoresLoading;
+  const loading = leagueLoading || teamsLoading || scoresLoading;
+  const error = teamsError || scoresError;
+  const hasData = !loading && !error && filteredLeaderboard.length > 0;
+  const noData = !loading && !error && filteredLeaderboard.length === 0;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -170,35 +211,47 @@ const LeagueLeaderboard = () => {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-2xl font-bold text-primary">
-                League Leaderboard
+                {leagueInfo?.name ? `${leagueInfo.name} Leaderboard` : "League Leaderboard"}
               </CardTitle>
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <Select value={selectedGroup} onValueChange={setSelectedGroup}>
-                  <SelectTrigger className="w-[180px] bg-white">
-                    <SelectValue placeholder="Filter by group" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {groups.map((group) => (
-                      <SelectItem key={group} value={group}>
-                        {group}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {hasData && (
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                    <SelectTrigger className="w-[180px] bg-white">
+                      <SelectValue placeholder="Filter by group" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {groups.map((group) => (
+                        <SelectItem key={group} value={group}>
+                          {group}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {loading && (
               <div className="py-8 text-center text-muted-foreground">
                 Loading leaderboard data...
               </div>
-            ) : filteredLeaderboard.length === 0 ? (
+            )}
+            
+            {error && (
+              <div className="py-8 text-center text-red-500">
+                Error loading leaderboard data. Please try again.
+              </div>
+            )}
+            
+            {noData && (
               <div className="py-8 text-center text-muted-foreground">
                 No teams found in this league.
               </div>
-            ) : (
+            )}
+            
+            {hasData && (
               <LeaderboardTable 
                 entries={filteredLeaderboard}
                 leagueId={leagueIdNum}
