@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { LeagueProvider } from "@/contexts/LeagueContext";
+import { LeagueProvider } from "@/contexts/LeagueProvider";
 import Login from "./pages/Login";
 import Home from "./pages/Home";
 import LeagueLeaderboard from "./pages/LeagueLeaderboard";
@@ -36,6 +36,7 @@ const App = () => (
               <Route path="/home" element={<Home />} />
               <Route path="/league/:leagueId/leaderboard" element={<LeagueLeaderboard />} />
               <Route path="/league/:leagueId/team/:teamId" element={<TeamDetail />} />
+              <Route path="/team/:teamId" element={<TeamDetail />} />
               <Route path="/player/:playerId" element={<PlayerDetail />} />
               <Route path="*" element={<NotFoundRedirect />} />
             </Routes>

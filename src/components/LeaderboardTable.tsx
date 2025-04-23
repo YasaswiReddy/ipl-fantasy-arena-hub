@@ -40,8 +40,13 @@ const LeaderboardTable = ({ entries, leagueId }: LeaderboardTableProps) => {
   };
 
   const handleRowClick = (teamId: number) => {
+    // Fixed: Use the correct navigation path with leagueId
     if (leagueId) {
+      console.log(`Navigating to team ${teamId} in league ${leagueId}`);
       navigate(`/league/${leagueId}/team/${teamId}`);
+    } else {
+      // If no leagueId is provided, still navigate but without the league context
+      navigate(`/team/${teamId}`);
     }
   };
 

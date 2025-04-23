@@ -1,32 +1,10 @@
+
 import { useAuth } from "@/contexts/AuthContext";
-import { useLeague } from "@/contexts/LeagueContext";
 import { Button } from "@/components/ui/button";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/services/api";
-import { League } from "@/types";
-import { LogOut, User } from "lucide-react";
+import { LogOut } from "lucide-react";
 
 const Header = () => {
   const { authState, logout } = useAuth();
-  const { selectedLeagueId, setSelectedLeagueId, leagues, setLeagues } = useLeague();
-
-  useQuery({
-    queryKey: ["leagues"],
-    queryFn: async () => {
-      const data = await api.getLeagues();
-      setLeagues(data);
-      if (!selectedLeagueId && data.length > 0) setSelectedLeagueId(data[0].id);
-      return data;
-    },
-    enabled: authState.isAuthenticated,
-  });
 
   return (
     <header className="sticky top-0 z-10 bg-ipl-gradient text-white shadow-md">
