@@ -1,3 +1,4 @@
+
 import React, { useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -19,6 +20,7 @@ import { toast } from "@/components/ui/sonner";
 interface TeamWithPlayers {
   id: number;
   name: string;
+  leagueId: number | null; // Added this property to fix the TypeScript error
   captainId: number | null;
   viceCaptainId: number | null;
   players: { id: number; name: string }[];
@@ -40,8 +42,13 @@ const LeagueLeaderboard = () => {
   const { data: allLeagues = [], isLoading: leagueLoading, error: leagueError } = useQuery({
     queryKey: ["leagues-for-leaderboard"],
     queryFn: async () => {
+      console.log("Fetching leagues");
       const { data, error } = await supabase.from("leagues").select("id, name");
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching leagues:", error);
+        throw error;
+      }
+      console.log("Leagues data:", data);
       return data;
     }
   });
@@ -50,6 +57,7 @@ const LeagueLeaderboard = () => {
   const { data: teams = [], isLoading: teamsLoading, error: teamsError } = useQuery<TeamWithPlayers[]>({
     queryKey: ["allFantasyTeams"],
     queryFn: async () => {
+      console.log("Fetching all fantasy teams");
       const { data, error } = await supabase
         .from("fantasy_teams")
         .select(`
@@ -69,6 +77,7 @@ const LeagueLeaderboard = () => {
         return [];
       }
 
+      console.log("Fantasy teams data:", data);
       return data.map((team: any) => ({
         id: team.id,
         name: team.name,
@@ -97,15 +106,18 @@ const LeagueLeaderboard = () => {
     queryKey: ["fantasyScoresLeaderboard", allPlayerIds],
     queryFn: async () => {
       if (!allPlayerIds.length) return [];
+      console.log("Fetching scores for players:", allPlayerIds);
       const { data, error } = await supabase
         .from("fantasy_scores")
         .select(`player_id, total_points`)
         .in("player_id", allPlayerIds);
 
       if (error) {
+        console.error("Error fetching player scores:", error);
         toast.error("Failed to fetch player scores");
         return [];
       }
+      console.log("Scores data:", data);
       return data;
     },
     enabled: !!allPlayerIds.length && allPlayerIds.length > 0,
