@@ -51,14 +51,14 @@ const TeamDetail = () => {
     enabled: !!teamIdNum,
   });
 
-  // Fetch players' details (name, role, team, etc.)
+  // Fetch players' details (name, team, etc.)
   const { data: players = [] } = useQuery({
     queryKey: ["team-players", team?.players],
     queryFn: async () => {
       if (!team?.players?.length) return [];
       const { data, error } = await supabase
         .from("players")
-        .select("id, name, role, team_id, photo_url")
+        .select("id, name, team_id, photo_url")
         .in("id", team.players);
       if (error) throw error;
       return data;
@@ -66,14 +66,14 @@ const TeamDetail = () => {
     enabled: !!team?.players?.length,
   });
 
-  // Fetch IPL teams logos
+  // Fetch IPL teams map
   const { data: iplTeamsMap = {} } = useQuery({
     queryKey: ["ipl-teams-map"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("teams").select("id, name, logo_url");
+      const { data, error } = await supabase.from("teams").select("id, name");
       if (error) throw error;
-      const map: Record<number, { name: string; logo_url: string }> = {};
-      data.forEach((t: any) => { map[t.id] = { name: t.name, logo_url: t.logo_url }; });
+      const map: Record<number, { name: string }> = {};
+      data.forEach((t: any) => { map[t.id] = { name: t.name }; });
       return map;
     }
   });
@@ -115,6 +115,34 @@ const TeamDetail = () => {
     }
   };
 
+  // --- Combine player, team, and calculated score info ---
+  const playerDisplayData = (() => {
+    if (!players.length || !team) return [];
+    // Enrich each player with score, C/VC info, and team name
+    return players.map((p: any) => {
+      const score = playerScores?.[p.id] || {};
+      const isC = p.id === team.captainId;
+      const isVC = p.id === team.viceCaptainId;
+      // multiplier for total only
+      let total = score.total || 0;
+      if (isC) {
+        total = total * 2;
+      } else if (isVC) {
+        total = Math.round(total * 1.5);
+      }
+      return {
+        ...p,
+        iplTeamName: iplTeamsMap?.[p.team_id]?.name || "",
+        isC,
+        isVC,
+        batting: score.batting || 0,
+        bowling: score.bowling || 0,
+        fielding: score.fielding || 0,
+        total,
+      };
+    }).sort((a, b) => b.total - a.total); // sort by total desc
+  })();
+
   return (
     <div className="min-h-screen bg-slate-50">
       <Header />
@@ -149,7 +177,6 @@ const TeamDetail = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Player</TableHead>
-                      <TableHead>Role</TableHead>
                       <TableHead>IPL Team</TableHead>
                       <TableHead className="text-right">Batting</TableHead>
                       <TableHead className="text-right">Bowling</TableHead>
@@ -158,51 +185,37 @@ const TeamDetail = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {players.map((p: any) => {
-                      const score = playerScores?.[p.id] || {};
-                      const isC = p.id === team.captainId;
-                      const isVC = p.id === team.viceCaptainId;
-                      const iplInfo = iplTeamsMap?.[p.team_id] || { name: "", logo_url: "/placeholder.svg" };
-                      return (
-                        <TableRow key={p.id}>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <img
-                                src={p.photo_url || "/placeholder.svg"}
-                                alt={p.name}
-                                className="w-8 h-8 rounded-full object-cover mr-2"
-                              />
-                              <span
-                                className={cn(
-                                  "font-medium",
-                                  isC && "text-ipl-orange",
-                                  isVC && "text-ipl-blue"
-                                )}
-                              >
-                                {p.name}
-                                {isC ? <span className="ml-2 text-xs bg-ipl-orange/20 px-2 py-0.5 rounded">C</span> : null}
-                                {isVC ? <span className="ml-2 text-xs bg-ipl-blue/20 px-2 py-0.5 rounded">VC</span> : null}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>{p.role}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <img
-                                src={iplInfo.logo_url}
-                                alt={iplInfo.name}
-                                className="w-4 h-4"
-                              />
-                              <span className="text-xs">{iplInfo.name}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">{score.batting || 0}</TableCell>
-                          <TableCell className="text-right">{score.bowling || 0}</TableCell>
-                          <TableCell className="text-right">{score.fielding || 0}</TableCell>
-                          <TableCell className="text-right font-bold">{score.total || 0}</TableCell>
-                        </TableRow>
-                      );
-                    })}
+                    {playerDisplayData.map((p: any) => (
+                      <TableRow key={p.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={p.photo_url || "/placeholder.svg"}
+                              alt={p.name}
+                              className="w-8 h-8 rounded-full object-cover mr-2"
+                            />
+                            <span
+                              className={cn(
+                                "font-medium",
+                                p.isC && "text-ipl-orange",
+                                p.isVC && "text-ipl-blue"
+                              )}
+                            >
+                              {p.name}
+                              {p.isC ? <span className="ml-2 text-xs bg-ipl-orange/20 px-2 py-0.5 rounded">C</span> : null}
+                              {p.isVC ? <span className="ml-2 text-xs bg-ipl-blue/20 px-2 py-0.5 rounded">VC</span> : null}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs">{p.iplTeamName}</span>
+                        </TableCell>
+                        <TableCell className="text-right">{p.batting}</TableCell>
+                        <TableCell className="text-right">{p.bowling}</TableCell>
+                        <TableCell className="text-right">{p.fielding}</TableCell>
+                        <TableCell className="text-right font-bold">{p.total}</TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
                 <div className="mt-2 text-sm text-muted-foreground italic">
@@ -211,6 +224,11 @@ const TeamDetail = () => {
                   </span>
                   <span className="inline-flex items-center ml-4">
                     <span className="w-3 h-3 inline-block rounded-full bg-ipl-blue mr-2"></span> Vice Captain
+                  </span>
+                </div>
+                <div className="mt-2 text-sm text-muted-foreground">
+                  <span>
+                    Captain scores ×2. Vice Captain scores ×1.5.
                   </span>
                 </div>
               </CardContent>
