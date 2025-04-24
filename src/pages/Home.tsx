@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import MatchCard from "@/components/MatchCard";
 import { api } from "@/services/api";
 import { supabaseService } from "@/services/supabaseService";
+import { useNavigate } from "react-router-dom";
 
 const Home = () => {
   const [recentMatches, setRecentMatches] = useState([]);
@@ -12,10 +13,33 @@ const Home = () => {
   const [isFetching, setIsFetching] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
+  const [leagues, setLeagues] = useState([]);
+  const navigate = useNavigate();
   
   useEffect(() => {
     loadMatches();
+    
+    // Add this to fetch leagues
+    const fetchLeagues = async () => {
+      try {
+        const leaguesData = await api.getLeagues();
+        setLeagues(leaguesData);
+      } catch (error) {
+        console.error("Failed to load leagues:", error);
+        toast.error("Failed to load leagues");
+      }
+    };
+    
+    fetchLeagues();
   }, []);
+
+  const navigateToLeaderboard = (leagueId) => {
+    navigate(`/league/${leagueId}/leaderboard`);
+  };
+
+  const navigateToGlobalLeaderboard = () => {
+    navigate('/leaderboard');
+  };
   
   const loadMatches = async () => {
     try {
@@ -98,7 +122,22 @@ const Home = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">Fantasy Cricket Dashboard</h1>
-      
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Global Leaderboard</CardTitle>
+          <CardDescription>
+            View rankings across all leagues
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button 
+            onClick={navigateToGlobalLeaderboard}
+            className="w-full"
+          >
+            View Global Leaderboard
+          </Button>
+        </CardContent>
+      </Card>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader>
@@ -198,6 +237,24 @@ const Home = () => {
             ))}
           </CardContent>
         </Card>
+      </div>
+      <h2 className="text-xl font-bold mt-8 mb-4">Fantasy Leagues</h2>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {leagues.map(league => (
+          <Card key={league.id} className="cursor-pointer" onClick={() => navigateToLeaderboard(league.id)}>
+            <CardHeader>
+              <CardTitle>{league.name}</CardTitle>
+              <CardDescription>
+                Owner: {league.ownerName} · {league.memberCount} teams
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" className="w-full">
+                View Leaderboard
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   );

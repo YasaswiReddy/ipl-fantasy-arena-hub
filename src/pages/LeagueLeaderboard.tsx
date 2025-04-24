@@ -38,6 +38,9 @@ const LeagueLeaderboard = () => {
   const { leagueId } = useParams<{ leagueId: string }>();
   const leagueIdNum = leagueId ? parseInt(leagueId) : null;
 
+  const [selectedLeague, setSelectedLeague] = React.useState<string>(
+    leagueId ? leagueId : "all"
+  );
   // Fetch all leagues for dropdown filter
   const { data: allLeagues = [], isLoading: leagueLoading, error: leagueError } = useQuery({
     queryKey: ["leagues-for-leaderboard"],
@@ -178,9 +181,6 @@ const LeagueLeaderboard = () => {
       }));
   }, [teams, scores]);
 
-  // Create league filter options and apply filter
-  const [selectedLeague, setSelectedLeague] = React.useState<string>("all");
-
   const leagueOptions = useMemo(() => [
     { id: "all", name: "All Leagues" },
     ...((allLeagues ?? []) as { id: number; name: string }[]),
@@ -217,7 +217,9 @@ const LeagueLeaderboard = () => {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-2xl font-bold text-primary">
-                IPL Fantasy Leaderboard
+                {selectedLeague === "all" 
+                 ? "Global Fantasy Leaderboard" 
+                 : "League Leaderboard"}
               </CardTitle>
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-muted-foreground" />
