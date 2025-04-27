@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -27,7 +26,6 @@ interface TeamWithPlayers {
 }
 
 interface EntryWithScore {
-  rank: number;
   teamId: number;
   teamName: string;
   totalPoints: number;
@@ -38,9 +36,6 @@ const LeagueLeaderboard = () => {
   const { leagueId } = useParams<{ leagueId: string }>();
   const leagueIdNum = leagueId ? parseInt(leagueId) : null;
 
-  const [selectedLeague, setSelectedLeague] = React.useState<string>(
-    leagueId ? leagueId : "all"
-  );
   // Fetch all leagues for dropdown filter
   const { data: allLeagues = [], isLoading: leagueLoading, error: leagueError } = useQuery({
     queryKey: ["leagues-for-leaderboard"],
@@ -149,8 +144,8 @@ const LeagueLeaderboard = () => {
     retry: 1,
   });
 
-  // Calculate leaderboard entries
-  const leaderboard: EntryWithScore[] = useMemo(() => {
+  // Calculate base leaderboard entries without ranks
+  const leaderboardWithoutRanks: EntryWithScore[] = useMemo(() => {
     if (!teams.length) return [];
     const playerPointsMap: { [key: number]: number } = {};
     for (const row of scores) {
@@ -171,26 +166,35 @@ const LeagueLeaderboard = () => {
           teamName: team.name,
           totalPoints: Math.round(total),
           leagueId: team.leagueId,
-          rank: 0,
         };
       })
-      .sort((a, b) => b.totalPoints - a.totalPoints)
-      .map((entry, idx) => ({
-        ...entry,
-        rank: idx + 1,
-      }));
+      .sort((a, b) => b.totalPoints - a.totalPoints);
   }, [teams, scores]);
+
+  // Create league filter options and apply filter
+  const [selectedLeague, setSelectedLeague] = React.useState<string>(leagueIdNum ? leagueIdNum.toString() : "all");
 
   const leagueOptions = useMemo(() => [
     { id: "all", name: "All Leagues" },
     ...((allLeagues ?? []) as { id: number; name: string }[]),
   ], [allLeagues]);
 
+  // Filter teams and then apply ranking within the filtered set
   const filteredLeaderboard = useMemo(() => {
-    if (selectedLeague === "all") return leaderboard;
-    const leagueIdToFilter = parseInt(selectedLeague);
-    return leaderboard.filter((entry) => entry.leagueId === leagueIdToFilter);
-  }, [leaderboard, selectedLeague]);
+    // First filter by selected league
+    const filteredTeams = selectedLeague === "all" 
+      ? leaderboardWithoutRanks 
+      : leaderboardWithoutRanks.filter(
+          (entry) => entry.leagueId === parseInt(selectedLeague)
+        );
+    
+    // Then apply ranks to the filtered list
+    // This ensures ranks are assigned within the context of the filtered league
+    return filteredTeams.map((entry, idx) => ({
+      ...entry,
+      rank: idx + 1, // Assign rank based on position in the filtered and sorted array
+    }));
+  }, [leaderboardWithoutRanks, selectedLeague]);
 
   // Error/Loading logic
   const totalErrors = [leagueError, teamsError, scoresError].filter(Boolean).length;
@@ -217,9 +221,7 @@ const LeagueLeaderboard = () => {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-2xl font-bold text-primary">
-                {selectedLeague === "all" 
-                 ? "Global Fantasy Leaderboard" 
-                 : "League Leaderboard"}
+                IPL Fantasy Leaderboard
               </CardTitle>
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-muted-foreground" />
