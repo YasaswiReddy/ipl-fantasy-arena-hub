@@ -8,6 +8,7 @@ interface AuthContextProps {
   authState: AuthState;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  isAdmin: boolean; // New property to check admin status
 }
 
 const initialAuthState: AuthState = {
@@ -23,6 +24,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authState, setAuthState] = useState<AuthState>(initialAuthState);
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Determine if user is admin (in this case, we're simply checking if user id is 1)
+  const isAdmin = authState.user?.id === 1;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -81,7 +85,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         navigate('/login', { replace: true });
       }
     }
-  }, [authState.isAuthenticated, authState.isLoading, location.pathname, navigate]);
+    
+    // Redirect from admin page if not admin
+    if (!authState.isLoading && authState.isAuthenticated && 
+        location.pathname === '/admin' && !isAdmin) {
+      toast.error("You don't have permission to access the admin page");
+      navigate('/home', { replace: true });
+    }
+  }, [authState.isAuthenticated, authState.isLoading, location.pathname, navigate, isAdmin]);
 
   const login = async (email: string, password: string) => {
     try {
@@ -108,7 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ authState, login, logout }}>
+    <AuthContext.Provider value={{ authState, login, logout, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );
