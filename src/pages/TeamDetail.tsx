@@ -196,10 +196,11 @@ const TeamDetail = () => {
                             />
                             <span
                               className={cn(
-                                "font-medium",
+                                "font-medium cursor-pointer hover:text-primary hover:underline",
                                 p.isC && "text-ipl-orange",
                                 p.isVC && "text-ipl-blue"
                               )}
+                              onClick={() => navigate(`/player/${p.id}`)}
                             >
                               {p.name}
                               {p.isC ? <span className="ml-2 text-xs bg-ipl-orange/20 px-2 py-0.5 rounded">C</span> : null}

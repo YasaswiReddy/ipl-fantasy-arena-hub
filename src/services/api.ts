@@ -139,18 +139,40 @@ async function getPlayerPerformancesFromDB(playerId: number): Promise<PlayerPerf
 }
 
 // Adding a method to calculate player ranking
+// Adding a method to calculate player ranking
 async function getPlayerRanking(playerId: number): Promise<{ rank: number; totalPlayers: number; percentile: number }> {
   try {
-    // Get all players' total points
-    const { data, error } = await supabase.rpc('get_player_rankings');
+    // Get all players' total points by directly querying fantasy_scores
+    const { data, error } = await supabase
+      .from('fantasy_scores')
+      .select('player_id, total_points');
 
     if (error) throw error;
 
+    // Aggregate scores by player (sum of all matches)
+    const playerScoresMap: Record<number, number> = {};
+    if (data) {
+      for (const score of data) {
+        if (score.player_id) {
+          if (!playerScoresMap[score.player_id]) {
+            playerScoresMap[score.player_id] = 0;
+          }
+          playerScoresMap[score.player_id] += score.total_points || 0;
+        }
+      }
+    }
+
+    // Convert to array for sorting
+    const playersWithScores = Object.entries(playerScoresMap).map(([id, points]) => ({
+      player_id: parseInt(id),
+      total_points: points
+    }));
+    
     // Sort players by points in descending order
-    const sortedPlayers = data.sort((a: any, b: any) => b.total_points - a.total_points);
+    const sortedPlayers = playersWithScores.sort((a, b) => b.total_points - a.total_points);
     
     // Find the rank of our player
-    const playerIndex = sortedPlayers.findIndex((p: any) => p.player_id === playerId);
+    const playerIndex = sortedPlayers.findIndex((p) => p.player_id === playerId);
     
     if (playerIndex === -1) {
       return { rank: 0, totalPlayers: sortedPlayers.length, percentile: 0 };
